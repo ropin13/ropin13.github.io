@@ -152,14 +152,16 @@
 				<p style="padding-top: 1.2em; padding-bottom: 0.3em">{{card.description}}</p>
 				<small style="position:absolute; bottom:0.5em; right: 1em; text-decoration: underline;">詳細閱讀...</small>
 			  </a>
-				<div class="line-it-button" data-lang="zh_Hant" data-type="share-e" data-url="{{card.link}}" style="display: none;"></div>
- 
 			</div>
 		  </div>
 		  <div style="text-align: center; padding: 2em;">
 				<button class="btn btn-info" ng-hide="alreadyClickCards" ng-click="alreadyClickCards=true;">閱讀更多</button>
 		  </div>
-	  </div><script src="https://d.line-scdn.net/r/web/social-plugin/js/thirdparty/loader.min.js" async="async" defer="defer"></script>
+	  </div>
+	
+	    <div class="line-it-button" data-lang="zh_Hant" data-type="share-e" data-url="https://ropin13.github.io/" style="display: none;"></div>
+	    <script src="https://d.line-scdn.net/r/web/social-plugin/js/thirdparty/loader.min.js" async="async" defer="defer"></script>
+	    
 	  <div ng-show="nowTopic === topics.ecpPublicInfo
 	  || nowTopic === topics.aboutUs.stage4Gov
 	  || nowTopic === topics.aboutUs.stage5Gov">
