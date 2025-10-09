@@ -438,6 +438,14 @@ createApp({
             if (value === null || value === undefined || isNaN(value)) return '';
             return `${Number(value).toFixed(2)}%`;
         },
+        openUsageModal() {
+            const modalElement = document.getElementById('usageModal');
+            if (!modalElement) {
+                return;
+            }
+            const modalInstance = bootstrap.Modal.getOrCreateInstance(modalElement);
+            modalInstance.show();
+        }
     },
     // 新增：初始化時備份原始字串
     mounted() {
@@ -445,6 +453,13 @@ createApp({
         this.editableDynamicFieldsString = this.dynamicFieldsString;
         // 初始化過濾器
         this.updateFilters();
+        // 初始化 Bootstrap tooltips
+        this.$nextTick(() => {
+            const tooltipTriggerList = Array.prototype.slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+            tooltipTriggerList.forEach(element => {
+                bootstrap.Tooltip.getOrCreateInstance(element);
+            });
+        });
     },
     watch: {
         selectedError(newError) {

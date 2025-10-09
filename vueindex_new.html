@@ -347,13 +347,13 @@
         
         <!-- 檔案選擇和錯誤選擇區域 -->
         <div class="row mb-4">
-            <div class="col-md-6 mb-3">
+            <div class="col-md-5 mb-3">
                 <label class="form-label fw-bold">
                     <i class="bi bi-file-earmark-excel"></i> 選擇 Excel 檔案
                 </label>
                 <input type="file" @change="handleFile" class="form-control" accept=".xlsx,.xls">
             </div>
-            <div class="col-md-6 mb-3">
+            <div class="col-md-5 mb-3">
                 <label class="form-label fw-bold">
                     <i class="bi bi-funnel"></i> 錯誤類型
                 </label>
@@ -363,6 +363,11 @@
                         {{ error.field }}
                     </option>
                 </select>
+            </div>
+            <div class="col-md-2 mb-1 text-end">
+                <button type="button" class="btn btn-outline-info btn-sm" @click="openUsageModal" data-bs-toggle="tooltip" data-bs-placement="left" title="快速查看操作步驟">
+                    <i class="bi bi-question-circle"></i> 使用說明
+                </button>
             </div>
         </div>
         
@@ -534,6 +539,28 @@
         </div>
         
         <!-- Modal -->
+        <div class="modal fade" id="usageModal" tabindex="-1" aria-labelledby="usageModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="usageModalLabel">資料比對工具使用說明</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <ol class="mb-0">
+                            <li>點選「選擇 Excel 檔案」上傳匯出之錯誤分析報表，系統會自動載入 Summary 與各資料工作表。</li>
+                            <li>從「錯誤類型」下拉選單挑選要檢視的錯誤欄位，資料表格會即時更新對應紀錄。</li>
+                            <li>若需調整鍵值拆解欄位，於「動態欄位配置」區塊編輯欄位列表，按下「套用變更」即可更新欄位與篩選器。</li>
+                            <li>在表格標頭過濾條件中輸入關鍵字或條件過濾資料（相似度可以用 >=90來查詢）</li>
+                            <li>在表格中點擊「明細」可查看原始工作表的完整行內容。</li>
+                        </ol>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">關閉</button>
+                    </div>
+                </div>
+            </div>
+        </div>
         <div class="modal fade" id="detailModal" tabindex="-1" aria-labelledby="detailModalLabel" aria-hidden="true">
             <div class="modal-dialog modal-lg">
                 <div class="modal-content">
