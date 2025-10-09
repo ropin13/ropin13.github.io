@@ -349,7 +349,7 @@
         <div class="row mb-4">
             <div class="col-md-5 mb-3">
                 <label class="form-label fw-bold">
-                    <i class="bi bi-file-earmark-excel"></i> 選擇 Excel 檔案
+                    <i class="bi bi-file-earmark-excel"></i> 選擇 Excel 檔案（Excel 檔案需要先把密碼移除）
                 </label>
                 <input type="file" @change="handleFile" class="form-control" accept=".xlsx,.xls">
             </div>
@@ -548,6 +548,7 @@
                     </div>
                     <div class="modal-body">
                         <ol class="mb-0">
+                            <li>！！！Excel 檔案需要先把密碼移除！！！</li>
                             <li>點選「選擇 Excel 檔案」上傳匯出之錯誤分析報表，系統會自動載入 Summary 與各資料工作表。</li>
                             <li>從「錯誤類型」下拉選單挑選要檢視的錯誤欄位，資料表格會即時更新對應紀錄。</li>
                             <li>若需調整鍵值拆解欄位，於「動態欄位配置」區塊編輯欄位列表，按下「套用變更」即可更新欄位與篩選器。</li>
