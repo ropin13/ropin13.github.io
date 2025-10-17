@@ -1,0 +1,917 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>夢幻水族館 - 放置類養魚遊戲</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Microsoft JhengHei', Arial, sans-serif;
+            background: linear-gradient(to bottom, #1a365d, #2c5282);
+            color: #fff;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .game-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 15px;
+            margin-bottom: 20px;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            color: #63b3ed;
+        }
+
+        .currency-display {
+            font-size: 1.5em;
+            color: #ffd700;
+            margin-top: 10px;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .aquarium-container {
+            background: linear-gradient(to bottom, #0ea5e9, #06b6d4, #0891b2);
+            border-radius: 15px;
+            padding: 20px;
+            position: relative;
+            min-height: 500px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
+
+        .aquarium-info {
+            background: rgba(0, 0, 0, 0.5);
+            padding: 10px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+        }
+
+        .fish {
+            position: absolute;
+            cursor: pointer;
+            transition: transform 0.3s;
+            animation: swim 15s infinite linear;
+        }
+
+        .fish:hover {
+            transform: scale(1.2);
+        }
+
+        @keyframes swim {
+            0% {
+                left: -100px;
+            }
+            100% {
+                left: 100%;
+            }
+        }
+
+        .bubble {
+            position: absolute;
+            background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0.3));
+            border-radius: 50%;
+            animation: rise 6s infinite ease-in;
+        }
+
+        @keyframes rise {
+            0% {
+                bottom: 0;
+                opacity: 0.8;
+            }
+            100% {
+                bottom: 100%;
+                opacity: 0;
+            }
+        }
+
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .panel {
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 15px;
+            padding: 20px;
+        }
+
+        .panel h2 {
+            color: #63b3ed;
+            margin-bottom: 15px;
+            font-size: 1.5em;
+            border-bottom: 2px solid #63b3ed;
+            padding-bottom: 10px;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .tab-btn {
+            padding: 10px 20px;
+            background: rgba(99, 179, 237, 0.3);
+            border: 2px solid #63b3ed;
+            border-radius: 10px;
+            color: #fff;
+            cursor: pointer;
+            font-size: 1em;
+            transition: all 0.3s;
+        }
+
+        .tab-btn:hover {
+            background: rgba(99, 179, 237, 0.5);
+        }
+
+        .tab-btn.active {
+            background: #63b3ed;
+            color: #000;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .fish-item, .upgrade-item {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .fish-item:hover, .upgrade-item:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .fish-info {
+            flex: 1;
+        }
+
+        .fish-name {
+            font-weight: bold;
+            color: #fbbf24;
+            font-size: 1.1em;
+        }
+
+        .fish-stats {
+            font-size: 0.9em;
+            color: #cbd5e0;
+            margin-top: 5px;
+        }
+
+        .fish-price {
+            color: #10b981;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            background: #10b981;
+            border: none;
+            border-radius: 8px;
+            color: #fff;
+            cursor: pointer;
+            font-size: 1em;
+            transition: all 0.3s;
+        }
+
+        .btn:hover {
+            background: #059669;
+            transform: translateY(-2px);
+        }
+
+        .btn:disabled {
+            background: #6b7280;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-sell {
+            background: #f59e0b;
+        }
+
+        .btn-sell:hover {
+            background: #d97706;
+        }
+
+        .my-fish-item {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 10px;
+        }
+
+        .fish-progress {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            height: 20px;
+            margin-top: 10px;
+            overflow: hidden;
+        }
+
+        .fish-progress-bar {
+            background: linear-gradient(to right, #10b981, #059669);
+            height: 100%;
+            transition: width 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8em;
+        }
+
+        .achievement-item {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 10px;
+        }
+
+        .achievement-item.completed {
+            background: rgba(16, 185, 129, 0.3);
+            border: 2px solid #10b981;
+        }
+
+        .achievement-title {
+            font-weight: bold;
+            color: #fbbf24;
+        }
+
+        .achievement-reward {
+            color: #10b981;
+            font-size: 0.9em;
+            margin-top: 5px;
+        }
+
+        .collection-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            gap: 10px;
+        }
+
+        .collection-item {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 10px;
+            border-radius: 10px;
+            text-align: center;
+            font-size: 2em;
+        }
+
+        .collection-item.locked {
+            opacity: 0.3;
+            filter: grayscale(100%);
+        }
+
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #10b981;
+            color: #fff;
+            padding: 15px 25px;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            animation: slideIn 0.3s, slideOut 0.3s 2.7s;
+            z-index: 1000;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes slideOut {
+            from {
+                transform: translateX(0);
+                opacity: 1;
+            }
+            to {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .stat-item {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 10px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 1.5em;
+            color: #fbbf24;
+            font-weight: bold;
+        }
+
+        .stat-label {
+            font-size: 0.9em;
+            color: #cbd5e0;
+            margin-top: 5px;
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div class="header">
+            <h1>🐠 夢幻水族館</h1>
+            <div class="currency-display">💰 金幣: <span id="currency">0</span></div>
+            <div style="margin-top: 10px; font-size: 1.1em;">
+                等級 <span id="level">1</span> | 經驗值: <span id="exp">0</span>/<span id="expMax">100</span>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="aquarium-container" id="aquarium">
+                <div class="aquarium-info">
+                    <strong>🏛️ <span id="aquariumName">小型水族箱</span></strong>
+                    <div style="margin-top: 5px;">容量: <span id="currentFish">0</span>/<span id="maxFish">5</span> 隻魚</div>
+                </div>
+            </div>
+
+            <div class="sidebar">
+                <div class="panel">
+                    <h2>📊 統計資料</h2>
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <div class="stat-value" id="totalFishCount">0</div>
+                            <div class="stat-label">擁有魚類</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value" id="totalEarned">0</div>
+                            <div class="stat-label">總收入</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value" id="collectionCount">0</div>
+                            <div class="stat-label">圖鑑進度</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value" id="achievementCount">0</div>
+                            <div class="stat-label">成就達成</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="panel">
+            <div class="tabs">
+                <button class="tab-btn active" onclick="switchTab('shop')">🛒 商店</button>
+                <button class="tab-btn" onclick="switchTab('myfish')">🐟 我的魚</button>
+                <button class="tab-btn" onclick="switchTab('upgrades')">⬆️ 升級</button>
+                <button class="tab-btn" onclick="switchTab('collection')">📖 圖鑑</button>
+                <button class="tab-btn" onclick="switchTab('achievements')">🏆 成就</button>
+                <button class="tab-btn" onclick="switchTab('customize')">🎨 客製化</button>
+            </div>
+
+            <div id="shop" class="tab-content active"></div>
+            <div id="myfish" class="tab-content"></div>
+            <div id="upgrades" class="tab-content"></div>
+            <div id="collection" class="tab-content"></div>
+            <div id="achievements" class="tab-content"></div>
+            <div id="customize" class="tab-content"></div>
+        </div>
+    </div>
+
+    <script>
+        // 遊戲狀態
+        let gameState = {
+            currency: 100,
+            level: 1,
+            exp: 0,
+            expMax: 100,
+            myFish: [],
+            collection: new Set(),
+            completedAchievements: new Set(),
+            aquariumLevel: 1,
+            maxFishCapacity: 5,
+            upgrades: {
+                growthSpeed: 1,
+                sellBonus: 1,
+                autoGrowth: false
+            },
+            totalEarned: 0,
+            aquariumTheme: {
+                background: 'linear-gradient(to bottom, #0ea5e9, #06b6d4, #0891b2)',
+                decoration: 'none'
+            }
+        };
+
+        // 魚類數據
+        const fishTypes = [
+            { id: 1, name: '小丑魚', emoji: '🐠', price: 50, growTime: 30000, sellPrice: 100, rarity: 'common' },
+            { id: 2, name: '金魚', emoji: '🐡', price: 80, growTime: 45000, sellPrice: 180, rarity: 'common' },
+            { id: 3, name: '熱帶魚', emoji: '🐟', price: 120, growTime: 60000, sellPrice: 280, rarity: 'uncommon' },
+            { id: 4, name: '藍吊魚', emoji: '🐬', price: 200, growTime: 90000, sellPrice: 500, rarity: 'uncommon' },
+            { id: 5, name: '神仙魚', emoji: '🦈', price: 350, growTime: 120000, sellPrice: 900, rarity: 'rare' },
+            { id: 6, name: '金龍魚', emoji: '🐉', price: 600, growTime: 180000, sellPrice: 1800, rarity: 'rare' },
+            { id: 7, name: '彩虹魚', emoji: '🌈', price: 1000, growTime: 240000, sellPrice: 3200, rarity: 'epic' },
+            { id: 8, name: '鯨魚', emoji: '🐋', price: 2000, growTime: 360000, sellPrice: 7000, rarity: 'epic' },
+            { id: 9, name: '傳說之魚', emoji: '✨', price: 5000, growTime: 600000, sellPrice: 20000, rarity: 'legendary' }
+        ];
+
+        // 升級項目
+        const upgradeOptions = [
+            { id: 'aquarium2', name: '中型水族箱', description: '容量: 10 隻魚', price: 500, type: 'aquarium', value: 10 },
+            { id: 'aquarium3', name: '大型水族館', description: '容量: 20 隻魚', price: 2000, type: 'aquarium', value: 20 },
+            { id: 'aquarium4', name: '超大水族館', description: '容量: 50 隻魚', price: 10000, type: 'aquarium', value: 50 },
+            { id: 'growth1', name: '營養飼料 I', description: '成長速度 +20%', price: 300, type: 'growth', value: 1.2 },
+            { id: 'growth2', name: '營養飼料 II', description: '成長速度 +50%', price: 1000, type: 'growth', value: 1.5 },
+            { id: 'growth3', name: '特級飼料', description: '成長速度 +100%', price: 5000, type: 'growth', value: 2 },
+            { id: 'sell1', name: '銷售技巧 I', description: '售價 +20%', price: 400, type: 'sell', value: 1.2 },
+            { id: 'sell2', name: '銷售技巧 II', description: '售價 +50%', price: 1500, type: 'sell', value: 1.5 },
+            { id: 'auto', name: '自動成長系統', description: '離線時也能成長', price: 3000, type: 'auto', value: true }
+        ];
+
+        // 成就系統
+        const achievements = [
+            { id: 'first_fish', name: '初次養魚', description: '購買第一隻魚', reward: 50, check: () => gameState.myFish.length >= 1 },
+            { id: 'collector_5', name: '收藏家入門', description: '收集 5 種不同的魚', reward: 100, check: () => gameState.collection.size >= 5 },
+            { id: 'collector_all', name: '完美收藏家', description: '收集所有魚類', reward: 1000, check: () => gameState.collection.size >= fishTypes.length },
+            { id: 'rich_1000', name: '小富翁', description: '累積 1000 金幣', reward: 200, check: () => gameState.totalEarned >= 1000 },
+            { id: 'rich_10000', name: '大富翁', description: '累積 10000 金幣', reward: 1000, check: () => gameState.totalEarned >= 10000 },
+            { id: 'level_5', name: '成長之路', description: '達到等級 5', reward: 300, check: () => gameState.level >= 5 },
+            { id: 'level_10', name: '專業養殖家', description: '達到等級 10', reward: 800, check: () => gameState.level >= 10 },
+            { id: 'fish_10', name: '水族館管理員', description: '同時擁有 10 隻魚', reward: 500, check: () => gameState.myFish.length >= 10 }
+        ];
+
+        // 初始化遊戲
+        function initGame() {
+            loadGame();
+            renderShop();
+            renderMyFish();
+            renderUpgrades();
+            renderCollection();
+            renderAchievements();
+            renderCustomize();
+            updateUI();
+            startGameLoop();
+            createBubbles();
+        }
+
+        // 切換標籤頁
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(tabName).classList.add('active');
+            event.target.classList.add('active');
+        }
+
+        // 渲染商店
+        function renderShop() {
+            const shopHTML = fishTypes.map(fish => {
+                const canAfford = gameState.currency >= fish.price;
+                const rarityColors = {
+                    common: '#9ca3af',
+                    uncommon: '#10b981',
+                    rare: '#3b82f6',
+                    epic: '#a855f7',
+                    legendary: '#f59e0b'
+                };
+                return `
+                    <div class="fish-item">
+                        <div class="fish-info">
+                            <div class="fish-name" style="color: ${rarityColors[fish.rarity]}">${fish.emoji} ${fish.name}</div>
+                            <div class="fish-stats">
+                                成長時間: ${fish.growTime / 1000}秒 | 售價: ${Math.floor(fish.sellPrice * gameState.upgrades.sellBonus)} 金幣
+                            </div>
+                        </div>
+                        <span class="fish-price">💰 ${fish.price}</span>
+                        <button class="btn" onclick="buyFish(${fish.id})" ${!canAfford || gameState.myFish.length >= gameState.maxFishCapacity ? 'disabled' : ''}>
+                            購買
+                        </button>
+                    </div>
+                `;
+            }).join('');
+            document.getElementById('shop').innerHTML = shopHTML;
+        }
+
+        // 購買魚
+        function buyFish(fishId) {
+            const fish = fishTypes.find(f => f.id === fishId);
+            if (gameState.currency >= fish.price && gameState.myFish.length < gameState.maxFishCapacity) {
+                gameState.currency -= fish.price;
+                const newFish = {
+                    ...fish,
+                    id: Date.now(),
+                    bornTime: Date.now(),
+                    growthProgress: 0,
+                    isGrown: false
+                };
+                gameState.myFish.push(newFish);
+                gameState.collection.add(fish.id);
+                addFishToAquarium(newFish);
+                showNotification(`成功購買 ${fish.emoji} ${fish.name}！`);
+                checkAchievements();
+                updateUI();
+                saveGame();
+            }
+        }
+
+        // 添加魚到水族箱
+        function addFishToAquarium(fish) {
+            const aquarium = document.getElementById('aquarium');
+            const fishElement = document.createElement('div');
+            fishElement.className = 'fish';
+            fishElement.id = `fish-${fish.id}`;
+            fishElement.innerHTML = fish.emoji;
+            fishElement.style.fontSize = '2em';
+            fishElement.style.top = `${Math.random() * 70 + 10}%`;
+            fishElement.style.animationDuration = `${10 + Math.random() * 10}s`;
+            fishElement.style.animationDelay = `${Math.random() * 5}s`;
+            fishElement.onclick = () => showFishInfo(fish);
+            aquarium.appendChild(fishElement);
+        }
+
+        // 顯示魚資訊
+        function showFishInfo(fish) {
+            const status = fish.isGrown ? '已成年' : `成長中 ${Math.floor(fish.growthProgress)}%`;
+            showNotification(`${fish.emoji} ${fish.name} - ${status}`);
+        }
+
+        // 渲染我的魚
+        function renderMyFish() {
+            if (gameState.myFish.length === 0) {
+                document.getElementById('myfish').innerHTML = '<p style="text-align: center; color: #cbd5e0; padding: 20px;">還沒有魚，快去商店購買吧！</p>';
+                return;
+            }
+
+            const myFishHTML = gameState.myFish.map(fish => {
+                const sellPrice = Math.floor(fish.sellPrice * gameState.upgrades.sellBonus);
+                return `
+                    <div class="my-fish-item">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <div class="fish-name">${fish.emoji} ${fish.name}</div>
+                                <div class="fish-stats">售價: ${sellPrice} 金幣</div>
+                            </div>
+                            <button class="btn btn-sell" onclick="sellFish(${fish.id})" ${!fish.isGrown ? 'disabled' : ''}>
+                                ${fish.isGrown ? '出售' : '成長中'}
+                            </button>
+                        </div>
+                        <div class="fish-progress">
+                            <div class="fish-progress-bar" style="width: ${fish.growthProgress}%">
+                                ${Math.floor(fish.growthProgress)}%
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            document.getElementById('myfish').innerHTML = myFishHTML;
+        }
+
+        // 出售魚
+        function sellFish(fishId) {
+            const fishIndex = gameState.myFish.findIndex(f => f.id === fishId);
+            if (fishIndex !== -1 && gameState.myFish[fishIndex].isGrown) {
+                const fish = gameState.myFish[fishIndex];
+                const sellPrice = Math.floor(fish.sellPrice * gameState.upgrades.sellBonus);
+                gameState.currency += sellPrice;
+                gameState.totalEarned += sellPrice;
+                gameState.exp += Math.floor(sellPrice / 10);
+                
+                const fishElement = document.getElementById(`fish-${fish.id}`);
+                if (fishElement) fishElement.remove();
+                
+                gameState.myFish.splice(fishIndex, 1);
+                showNotification(`出售 ${fish.emoji} ${fish.name}，獲得 ${sellPrice} 金幣！`);
+                
+                checkLevelUp();
+                checkAchievements();
+                updateUI();
+                saveGame();
+            }
+        }
+
+        // 渲染升級
+        function renderUpgrades() {
+            const upgradesHTML = upgradeOptions.map(upgrade => {
+                const canAfford = gameState.currency >= upgrade.price;
+                const isPurchased = 
+                    (upgrade.type === 'aquarium' && gameState.maxFishCapacity >= upgrade.value) ||
+                    (upgrade.type === 'growth' && gameState.upgrades.growthSpeed >= upgrade.value) ||
+                    (upgrade.type === 'sell' && gameState.upgrades.sellBonus >= upgrade.value) ||
+                    (upgrade.type === 'auto' && gameState.upgrades.autoGrowth);
+                
+                return `
+                    <div class="upgrade-item">
+                        <div class="fish-info">
+                            <div class="fish-name">${upgrade.name}</div>
+                            <div class="fish-stats">${upgrade.description}</div>
+                        </div>
+                        <span class="fish-price">💰 ${upgrade.price}</span>
+                        <button class="btn" onclick="buyUpgrade('${upgrade.id}')" ${!canAfford || isPurchased ? 'disabled' : ''}>
+                            ${isPurchased ? '已購買' : '購買'}
+                        </button>
+                    </div>
+                `;
+            }).join('');
+            document.getElementById('upgrades').innerHTML = upgradesHTML;
+        }
+
+        // 購買升級
+        function buyUpgrade(upgradeId) {
+            const upgrade = upgradeOptions.find(u => u.id === upgradeId);
+            if (gameState.currency >= upgrade.price) {
+                gameState.currency -= upgrade.price;
+                
+                switch(upgrade.type) {
+                    case 'aquarium':
+                        gameState.maxFishCapacity = upgrade.value;
+                        gameState.aquariumLevel++;
+                        updateAquariumInfo();
+                        break;
+                    case 'growth':
+                        gameState.upgrades.growthSpeed = upgrade.value;
+                        break;
+                    case 'sell':
+                        gameState.upgrades.sellBonus = upgrade.value;
+                        break;
+                    case 'auto':
+                        gameState.upgrades.autoGrowth = upgrade.value;
+                        break;
+                }
+                
+                showNotification(`成功購買 ${upgrade.name}！`);
+                updateUI();
+                saveGame();
+            }
+        }
+
+        // 更新水族箱資訊
+        function updateAquariumInfo() {
+            const aquariumNames = ['小型水族箱', '中型水族箱', '大型水族館', '超大水族館'];
+            document.getElementById('aquariumName').textContent = aquariumNames[gameState.aquariumLevel - 1] || '夢幻水族館';
+        }
+
+        // 渲染圖鑑
+        function renderCollection() {
+            const collectionHTML = `
+                <div class="collection-grid">
+                    ${fishTypes.map(fish => {
+                        const isCollected = gameState.collection.has(fish.id);
+                        return `
+                            <div class="collection-item ${isCollected ? '' : 'locked'}" title="${isCollected ? fish.name : '???'}">
+                                ${isCollected ? fish.emoji : '🔒'}
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+                <div style="text-align: center; margin-top: 20px; color: #cbd5e0;">
+                    已收集: ${gameState.collection.size} / ${fishTypes.length}
+                </div>
+            `;
+            document.getElementById('collection').innerHTML = collectionHTML;
+        }
+
+        // 渲染成就
+        function renderAchievements() {
+            const achievementsHTML = achievements.map(achievement => {
+                const isCompleted = gameState.completedAchievements.has(achievement.id);
+                return `
+                    <div class="achievement-item ${isCompleted ? 'completed' : ''}">
+                        <div class="achievement-title">
+                            ${isCompleted ? '✅' : '⬜'} ${achievement.name}
+                        </div>
+                        <div class="fish-stats">${achievement.description}</div>
+                        <div class="achievement-reward">獎勵: ${achievement.reward} 金幣</div>
+                    </div>
+                `;
+            }).join('');
+            document.getElementById('achievements').innerHTML = achievementsHTML;
+        }
+
+        // 渲染客製化
+        function renderCustomize() {
+            const themes = [
+                { name: '經典藍', gradient: 'linear-gradient(to bottom, #0ea5e9, #06b6d4, #0891b2)' },
+                { name: '深海藍', gradient: 'linear-gradient(to bottom, #1e3a8a, #1e40af, #3b82f6)' },
+                { name: '熱帶綠', gradient: 'linear-gradient(to bottom, #059669, #10b981, #34d399)' },
+                { name: '珊瑚粉', gradient: 'linear-gradient(to bottom, #be123c, #e11d48, #f43f5e)' },
+                { name: '紫羅蘭', gradient: 'linear-gradient(to bottom, #6b21a8, #7c3aed, #a78bfa)' }
+            ];
+
+            const customizeHTML = `
+                <h3 style="color: #fbbf24; margin-bottom: 15px;">水族箱主題</h3>
+                <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px;">
+                    ${themes.map((theme, index) => `
+                        <button class="btn" style="background: ${theme.gradient}; height: 60px;" 
+                                onclick="changeTheme('${theme.gradient}')">
+                            ${theme.name}
+                        </button>
+                    `).join('')}
+                </div>
+            `;
+            document.getElementById('customize').innerHTML = customizeHTML;
+        }
+
+        // 更換主題
+        function changeTheme(gradient) {
+            gameState.aquariumTheme.background = gradient;
+            document.getElementById('aquarium').style.background = gradient;
+            showNotification('主題已更換！');
+            saveGame();
+        }
+
+        // 檢查成就
+        function checkAchievements() {
+            achievements.forEach(achievement => {
+                if (!gameState.completedAchievements.has(achievement.id) && achievement.check()) {
+                    gameState.completedAchievements.add(achievement.id);
+                    gameState.currency += achievement.reward;
+                    showNotification(`🏆 成就達成: ${achievement.name}！獲得 ${achievement.reward} 金幣！`);
+                    renderAchievements();
+                }
+            });
+        }
+
+        // 檢查升級
+        function checkLevelUp() {
+            while (gameState.exp >= gameState.expMax) {
+                gameState.exp -= gameState.expMax;
+                gameState.level++;
+                gameState.expMax = Math.floor(gameState.expMax * 1.5);
+                showNotification(`🎉 升級！現在是等級 ${gameState.level}！`);
+            }
+        }
+
+        // 遊戲主循環
+        function startGameLoop() {
+            setInterval(() => {
+                const currentTime = Date.now();
+                let updated = false;
+
+                gameState.myFish.forEach(fish => {
+                    if (!fish.isGrown) {
+                        const elapsed = currentTime - fish.bornTime;
+                        const adjustedGrowTime = fish.growTime / gameState.upgrades.growthSpeed;
+                        fish.growthProgress = Math.min((elapsed / adjustedGrowTime) * 100, 100);
+                        
+                        if (fish.growthProgress >= 100) {
+                            fish.isGrown = true;
+                            showNotification(`${fish.emoji} ${fish.name} 已成年！可以出售了！`);
+                        }
+                        updated = true;
+                    }
+                });
+
+                if (updated) {
+                    renderMyFish();
+                    updateUI();
+                }
+            }, 1000);
+
+            // 自動保存
+            setInterval(() => {
+                saveGame();
+            }, 30000);
+        }
+
+        // 創建氣泡
+        function createBubbles() {
+            const aquarium = document.getElementById('aquarium');
+            setInterval(() => {
+                const bubble = document.createElement('div');
+                bubble.className = 'bubble';
+                const size = Math.random() * 20 + 10;
+                bubble.style.width = `${size}px`;
+                bubble.style.height = `${size}px`;
+                bubble.style.left = `${Math.random() * 100}%`;
+                bubble.style.animationDuration = `${Math.random() * 4 + 3}s`;
+                aquarium.appendChild(bubble);
+                
+                setTimeout(() => bubble.remove(), 7000);
+            }, 1000);
+        }
+
+        // 顯示通知
+        function showNotification(message) {
+            const notification = document.createElement('div');
+            notification.className = 'notification';
+            notification.textContent = message;
+            document.body.appendChild(notification);
+            setTimeout(() => notification.remove(), 3000);
+        }
+
+        // 更新 UI
+        function updateUI() {
+            document.getElementById('currency').textContent = gameState.currency;
+            document.getElementById('level').textContent = gameState.level;
+            document.getElementById('exp').textContent = gameState.exp;
+            document.getElementById('expMax').textContent = gameState.expMax;
+            document.getElementById('currentFish').textContent = gameState.myFish.length;
+            document.getElementById('maxFish').textContent = gameState.maxFishCapacity;
+            document.getElementById('totalFishCount').textContent = gameState.myFish.length;
+            document.getElementById('totalEarned').textContent = gameState.totalEarned;
+            document.getElementById('collectionCount').textContent = `${gameState.collection.size}/${fishTypes.length}`;
+            document.getElementById('achievementCount').textContent = `${gameState.completedAchievements.size}/${achievements.length}`;
+            
+            renderShop();
+            renderMyFish();
+            renderUpgrades();
+            renderCollection();
+            updateAquariumInfo();
+        }
+
+        // 儲存遊戲
+        function saveGame() {
+            localStorage.setItem('aquariumGame', JSON.stringify({
+                ...gameState,
+                collection: Array.from(gameState.collection),
+                completedAchievements: Array.from(gameState.completedAchievements),
+                lastSaveTime: Date.now()
+            }));
+        }
+
+        // 載入遊戲
+        function loadGame() {
+            const saved = localStorage.getItem('aquariumGame');
+            if (saved) {
+                const data = JSON.parse(saved);
+                gameState = {
+                    ...data,
+                    collection: new Set(data.collection),
+                    completedAchievements: new Set(data.completedAchievements)
+                };
+
+                // 處理離線成長
+                if (gameState.upgrades.autoGrowth && data.lastSaveTime) {
+                    const offlineTime = Date.now() - data.lastSaveTime;
+                    gameState.myFish.forEach(fish => {
+                        if (!fish.isGrown) {
+                            const additionalProgress = (offlineTime / (fish.growTime / gameState.upgrades.growthSpeed)) * 100;
+                            fish.growthProgress = Math.min(fish.growthProgress + additionalProgress, 100);
+                            if (fish.growthProgress >= 100) {
+                                fish.isGrown = true;
+                            }
+                        }
+                    });
+                    showNotification(`離線期間，你的魚獲得了額外成長！`);
+                }
+
+                // 重新渲染水族箱中的魚
+                gameState.myFish.forEach(fish => {
+                    addFishToAquarium(fish);
+                });
+
+                // 應用主題
+                document.getElementById('aquarium').style.background = gameState.aquariumTheme.background;
+            }
+        }
+
+        // 啟動遊戲
+        initGame();
+    </script>
+</body>
+</html>
