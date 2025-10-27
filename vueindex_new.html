@@ -371,18 +371,62 @@
             </div>
         </div>
         
-        <!-- 統計資訊區域 - 簡化為只顯示錯誤次數 
+        <!-- 統計資訊區域 -->
         <div class="stats-container" v-if="errorFields.length > 0">
-            <div class="d-flex align-items-center gap-3">
-                <span class="text-muted fw-bold">統計資訊:</span>
-                <div class="stat-item">
-                    <div class="stat-label">錯誤次數</div><div class="stat-value">{{ errorCount }}</div>
+            <!-- 錯誤欄位清單 -->
+            <div class="mb-3">
+                <div class="d-flex justify-content-between align-items-center mb-2" style="cursor: pointer;" @click="showErrorList = !showErrorList">
+                    <h6 class="mb-0 text-muted">
+                        <i class="bi bi-list-ul"></i> 錯誤欄位清單 ({{ errorFields.length }} 項)
+                    </h6>
+                    <button class="btn btn-sm btn-outline-secondary">
+                        <i :class="showErrorList ? 'bi bi-chevron-up' : 'bi bi-chevron-down'"></i>
+                        {{ showErrorList ? '收合' : '展開' }}
+                    </button>
                 </div>
-                <div class="stat-item" v-if="dataTable.length > 0">
-                    <div class="stat-label">資料筆數</div><div class="stat-value">{{ filteredData.length }}</div>
+                <div v-show="showErrorList" class="table-responsive">
+                    <table class="table table-sm table-hover table-bordered mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width: 60px;">#</th>
+                                <th style="width: 100px;">狀態</th>
+                                <th style="width: 120px;">錯誤次數</th>
+                                <th>錯誤欄位名稱</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="(error, index) in errorFields" :key="error.field"
+                                :class="error.field === selectedError ? 'table-primary' : ''">
+                                <td class="text-center">{{ index + 1 }}</td>
+                                <td class="text-center">
+                                    <span v-if="error.field === selectedError" class="badge bg-primary">
+                                        <i class="bi bi-check-circle"></i> 選中
+                                    </span>
+                                    <span v-else class="text-muted">-</span>
+                                </td>
+                                <td class="text-end">
+                                    {{ error.count }}
+                                </td>
+                                <td>
+                                    <strong>{{ error.field }}</strong>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
-        </div>-->
+            <!-- 統計摘要 -->
+            <div class="d-flex gap-3 align-items-center flex-wrap" v-if="selectedError">
+                <div class="stat-item" style="cursor: pointer;" @click="showUnknownModal" title="點擊查看詳細">
+                    <div class="stat-label"><i class="bi bi-plus-circle"></i> 多餘筆數</div>
+                    <div class="stat-value">{{ unknownData.length }}</div>
+                </div>
+                <div class="stat-item" style="cursor: pointer;" @click="showMissModal" title="點擊查看詳細">
+                    <div class="stat-label"><i class="bi bi-dash-circle"></i> 缺少筆數</div>
+                    <div class="stat-value">{{ missData.length }}</div>
+                </div>
+            </div>
+        </div>
         
         <!-- 動態欄位配置區域 -->
         <div class="card">
@@ -582,6 +626,104 @@
                                 </tr>
                             </tbody>
                         </table>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">關閉</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 多餘資料 Modal -->
+        <div class="modal fade" id="unknownModal" tabindex="-1" aria-labelledby="unknownModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-xl">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="unknownModalLabel">
+                            <i class="bi bi-exclamation-triangle text-warning"></i> 多餘資料明細 (共 {{ unknownData.length }} 筆)
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
+                        <div v-if="unknownData.length === 0" class="text-center text-muted py-4">
+                            <i class="bi bi-info-circle" style="font-size: 2rem;"></i>
+                            <p class="mt-2">沒有多餘的資料</p>
+                        </div>
+                        <div v-for="(item, index) in unknownData" :key="index" class="mb-4">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <h6 class="mb-0">
+                                    <span class="badge bg-warning text-dark">{{ index + 1 }}</span>
+                                    工作表: {{ item.sheetName }} | 行數: {{ item.row }}
+                                </h6>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="table table-sm table-bordered">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th v-for="(header, hIndex) in item.headers" :key="hIndex" style="font-size: 0.8rem;">
+                                                {{ header }}
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td v-for="(value, vIndex) in item.values" :key="vIndex" style="font-size: 0.8rem;">
+                                                {{ value }}
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">關閉</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 缺少資料 Modal -->
+        <div class="modal fade" id="missModal" tabindex="-1" aria-labelledby="missModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-xl">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="missModalLabel">
+                            <i class="bi bi-exclamation-circle text-danger"></i> 缺少資料明細 (共 {{ missData.length }} 筆)
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
+                        <div v-if="missData.length === 0" class="text-center text-muted py-4">
+                            <i class="bi bi-info-circle" style="font-size: 2rem;"></i>
+                            <p class="mt-2">沒有缺少的資料</p>
+                        </div>
+                        <div v-for="(item, index) in missData" :key="index" class="mb-4">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <h6 class="mb-0">
+                                    <span class="badge bg-danger">{{ index + 1 }}</span>
+                                    工作表: {{ item.sheetName }} | 行數: {{ item.row }}
+                                </h6>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="table table-sm table-bordered">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th v-for="(header, hIndex) in item.headers" :key="hIndex" style="font-size: 0.8rem;">
+                                                {{ header }}
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td v-for="(value, vIndex) in item.values" :key="vIndex" style="font-size: 0.8rem;">
+                                                {{ value }}
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">關閉</button>
