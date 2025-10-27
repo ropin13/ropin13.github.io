@@ -8,6 +8,9 @@ createApp({
             selectedError: '',
             errorCount: 0,
             dataTable: [],
+            // 新增：多餘與缺少的資料
+            unknownData: [],
+            missData: [],
             // 定義預設欄位組
             fieldSets: [
                 {
@@ -31,6 +34,8 @@ createApp({
             editableDynamicFieldsString: '',
             // 新增：控制編輯器顯示/隱藏
             showFieldEditor: false,
+            // 新增：控制錯誤清單顯示/隱藏
+            showErrorList: true,
             // 新增：備份原始字串
             originalDynamicFieldsString: '',
             // 修復：將 filters 改回 data property
@@ -171,6 +176,8 @@ createApp({
                 selectedError = this.selectedError;
             }
             const dataTable = [];
+            const unknownData = [];
+            const missData = [];
             let sheetIndex = 0;
 
             while (true) {
@@ -197,8 +204,10 @@ createApp({
                 matchingColumns.forEach(location => {
                     const row = location[0];
                     const col = location[1];
-                    const logIdName = worksheet[XLSX.utils.encode_cell({ r: row - 1, c: 0 })]?.v || '';
-                    if ("Log Id" === logIdName) {
+
+                    const logTypeName = worksheet[XLSX.utils.encode_cell({ r: row - 1, c: 0 })]?.v || '';
+                                        
+                    if ("Log Id" === logTypeName) {
                         const mainValue = worksheet[XLSX.utils.encode_cell({ r: row, c: col })]?.v || '';
                         const derivedValue = worksheet[XLSX.utils.encode_cell({ r: row + 1, c: col })]?.v || '';
                         const keyValue = worksheet[XLSX.utils.encode_cell({ r: row, c: 0 })]?.v || '';
@@ -221,11 +230,38 @@ createApp({
                         });
 
                         dataTable.push(rowData);
+                    } else if (logTypeName === 'unknown' || logTypeName === 'miss') {
+                        // 讀取欄位標題（下一列）和欄位值（下下一列）
+                        const headers = [];
+                        const values = [];
+                        for (let c = 0; ; c++) {
+                            const headerCell = worksheet[XLSX.utils.encode_cell({ r: row, c })];
+                            const valueCell = worksheet[XLSX.utils.encode_cell({ r: row + 1, c })];
+                            if (!headerCell) break;
+                            headers.push(headerCell.v || '');
+                            values.push(valueCell ? valueCell.v : '');
+                        }
+                        
+                        const dataItem = {
+                            sheetName,
+                            row: row + 1,
+                            headers,
+                            values
+                        };
+                        
+                        if (aColumnValue === 'unknown') {
+                            unknownData.push(dataItem);
+                        } else {
+                            missData.push(dataItem);
+                        }
+                        return;
                     }
                 });
             }
 
             this.dataTable = dataTable;
+            this.unknownData = unknownData;
+            this.missData = missData;
             this.loading = false;
         },
         showDetails(row, worksheetName) {
@@ -440,6 +476,24 @@ createApp({
         },
         openUsageModal() {
             const modalElement = document.getElementById('usageModal');
+            if (!modalElement) {
+                return;
+            }
+            const modalInstance = bootstrap.Modal.getOrCreateInstance(modalElement);
+            modalInstance.show();
+        },
+        // 新增：顯示多餘資料 modal
+        showUnknownModal() {
+            const modalElement = document.getElementById('unknownModal');
+            if (!modalElement) {
+                return;
+            }
+            const modalInstance = bootstrap.Modal.getOrCreateInstance(modalElement);
+            modalInstance.show();
+        },
+        // 新增：顯示缺少資料 modal
+        showMissModal() {
+            const modalElement = document.getElementById('missModal');
             if (!modalElement) {
                 return;
             }
