@@ -51,7 +51,8 @@ createApp({
             currentPage: 1,
             itemsPerPage: 10,
             modalHeaders: [],
-            modalRows: []
+            modalRows: [],
+            equipNoList: ''
         };
     },
     computed: {
@@ -77,7 +78,21 @@ createApp({
                     if (key === 'similarity') {
                         return this.applyNumericFilter(row.similarity, value);
                     }
-                    return String(row[key] ?? '').toUpperCase().includes(String(value).toUpperCase());
+                    
+                    // 新增：支援 ! 前綴排除條件
+                    const strValue = String(value).trim();
+                    const isExclude = strValue.startsWith('!');
+                    const searchValue = isExclude ? strValue.substring(1).trim() : strValue;
+                    
+                    if (!searchValue) {
+                        return true;
+                    }
+                    
+                    const rowValue = String(row[key] ?? '').toUpperCase();
+                    const matches = rowValue.includes(searchValue.toUpperCase());
+                    
+                    // 如果是排除條件，回傳相反結果
+                    return isExclude ? !matches : matches;
                 });
             });
         },
@@ -88,17 +103,6 @@ createApp({
             const start = (this.currentPage - 1) * this.itemsPerPage;
             const end = start + this.itemsPerPage;
             return this.filteredData.slice(start, end);
-        },
-        visiblePages() {
-            const pages = [];
-            const startPage = Math.max(1, this.currentPage - 5);
-            const endPage = Math.min(this.totalPages, this.currentPage + 5);
-
-            for (let i = startPage; i <= endPage; i++) {
-                pages.push(i);
-            }
-
-            return pages;
         },
         // 新增：預覽欄位陣列
         previewFields() {
@@ -165,6 +169,10 @@ createApp({
                 this.errorFields = errorFields;
                 this.selectedError = errorFields.length > 0 ? errorFields[0].field : '';
                 this.errorCount = errorFields.length > 0 ? errorFields[0].count : 0;
+                
+                // 讀取所有 unknown 和 miss 資料
+                this.loadUnknownAndMissData();
+                
                 this.loading = false;
             };
 
@@ -176,8 +184,6 @@ createApp({
                 selectedError = this.selectedError;
             }
             const dataTable = [];
-            const unknownData = [];
-            const missData = [];
             let sheetIndex = 0;
 
             while (true) {
@@ -230,39 +236,74 @@ createApp({
                         });
 
                         dataTable.push(rowData);
-                    } else if (logTypeName === 'unknown' || logTypeName === 'miss') {
-                        // 讀取欄位標題（下一列）和欄位值（下下一列）
-                        const headers = [];
-                        const values = [];
-                        for (let c = 0; ; c++) {
-                            const headerCell = worksheet[XLSX.utils.encode_cell({ r: row, c })];
-                            const valueCell = worksheet[XLSX.utils.encode_cell({ r: row + 1, c })];
-                            if (!headerCell) break;
-                            headers.push(headerCell.v || '');
-                            values.push(valueCell ? valueCell.v : '');
-                        }
-                        
-                        const dataItem = {
-                            sheetName,
-                            row: row + 1,
-                            headers,
-                            values
-                        };
-                        
-                        if (aColumnValue === 'unknown') {
-                            unknownData.push(dataItem);
-                        } else {
-                            missData.push(dataItem);
-                        }
-                        return;
                     }
                 });
             }
 
             this.dataTable = dataTable;
+            this.loading = false;
+        },
+        // 新增：載入 unknown 和 miss 資料（在檔案載入時執行）
+        loadUnknownAndMissData() {
+            const unknownData = [];
+            const missData = [];
+            let sheetIndex = 0;
+
+            while (true) {
+                const sheetName = `Data_${String(sheetIndex).padStart(9, '0')}`;
+                const worksheet = this.workbook.Sheets[sheetName];
+                if (!worksheet) break;
+
+                sheetIndex++;
+                let maxRow = parseInt(worksheet['!ref'].split(':')[1].replace(/[A-Z]/g, ''));
+
+                // 掃描整個工作表尋找 unknown 和 miss
+                for (let row = 1; row <= maxRow; row++) {
+                    for (let col = 0; ; col++) {
+                        const cellAddress = XLSX.utils.encode_cell({ r: row - 1, c: col });
+                        const cell = worksheet[cellAddress];
+                        
+                        if (cell && (cell.v === 'miss' || cell.v === 'unknown')) {
+                            const logType = cell.v;
+                            
+                            // 讀取下一列的欄位名稱
+                            const headers = [];
+                            for (let c = 0; ; c++) {
+                                const headerCell = worksheet[XLSX.utils.encode_cell({ r: row, c })];
+                                if (!headerCell || !headerCell.v) break;
+                                headers.push(headerCell.v);
+                            }
+                            
+                            // 讀取下下一列的欄位值
+                            const values = [];
+                            for (let c = 0; c < headers.length; c++) {
+                                const valueCell = worksheet[XLSX.utils.encode_cell({ r: row + 1, c })];
+                                values.push(valueCell ? valueCell.v : '');
+                            }
+                            
+                            const dataItem = {
+                                row: row + 1,
+                                sheetName,
+                                values
+                            };
+                            
+                            if (logType === 'unknown') {
+                                unknownData.push(dataItem);
+                            } else {
+                                missData.push(dataItem);
+                            }
+                            
+                            row = row + 2; // 跳過欄位名稱列和值列
+                            break;
+                        }
+                        
+                        if (!cell) break;
+                    }
+                }
+            }
+
             this.unknownData = unknownData;
             this.missData = missData;
-            this.loading = false;
         },
         showDetails(row, worksheetName) {
             const worksheet = this.workbook.Sheets[worksheetName];
@@ -484,6 +525,33 @@ createApp({
         },
         // 新增：顯示多餘資料 modal
         showUnknownModal() {
+            if (this.unknownData.length === 0) {
+                alert('沒有多餘的資料');
+                return;
+            }
+            
+            // 定義欄位順序（對應 A-I 欄位）
+            const FIELDS_ORDER = [
+                'DELIVERY_NO',
+                'DIRECT_DEBIT_NO', 
+                'ACC_NO',
+                'OFFICE_CODE',
+                'EQUIP_NO',
+                'BILL_TYPE',
+                'CTRL_CODE',
+                'PBX_TELNO',
+                'RATE_CODE'
+            ];
+            
+            // 格式化函式：將每筆資料的 values 陣列用 _ 連接
+            const formatter = (item) => item.values.join('_');
+            
+            // 產生格式化後的字串列表
+            this.equipNoList = this.unknownData
+                .map(formatter)
+                .filter(Boolean)
+                .join('\n');
+            
             const modalElement = document.getElementById('unknownModal');
             if (!modalElement) {
                 return;
@@ -493,6 +561,33 @@ createApp({
         },
         // 新增：顯示缺少資料 modal
         showMissModal() {
+            if (this.missData.length === 0) {
+                alert('沒有缺少的資料');
+                return;
+            }
+            
+            // 定義欄位順序（對應 A-I 欄位）
+            const FIELDS_ORDER = [
+                'DELIVERY_NO',
+                'DIRECT_DEBIT_NO',
+                'ACC_NO', 
+                'OFFICE_CODE',
+                'EQUIP_NO',
+                'BILL_TYPE',
+                'CTRL_CODE',
+                'PBX_TELNO',
+                'RATE_CODE'
+            ];
+            
+            // 格式化函式：將每筆資料的 values 陣列用 _ 連接
+            const formatter = (item) => item.values.join('_');
+            
+            // 產生格式化後的字串列表
+            this.equipNoList = this.missData
+                .map(formatter)
+                .filter(Boolean)
+                .join('\n');
+            
             const modalElement = document.getElementById('missModal');
             if (!modalElement) {
                 return;
