@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>生理數據追蹤面板</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body class="bg-gray-50 text-gray-800 font-sans min-h-screen">
+
+    <!-- 頂部導航列 -->
+    <header class="bg-white shadow-sm sticky top-0 z-10">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
+            <div class="flex items-center gap-2">
+                <i data-lucide="activity" class="text-blue-600"></i>
+                <h1 class="text-xl font-bold text-gray-900">生理數據追蹤面板</h1>
+            </div>
+            <button onclick="toggleSettings()" class="flex items-center gap-2 text-sm text-gray-600 hover:text-blue-600 transition-colors bg-gray-100 px-3 py-1.5 rounded-md">
+                <i data-lucide="settings" class="w-4 h-4"></i>
+                <span class="hidden sm:inline">設定 API</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- 設定 API Modal -->
+    <div id="settingsModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
+        <div class="bg-white rounded-lg p-6 w-11/12 max-w-md shadow-xl">
+            <h2 class="text-lg font-bold mb-4 flex items-center gap-2">
+                <i data-lucide="database" class="w-5 h-5 text-blue-500"></i>
+                Google Sheets API 設定
+            </h2>
+            <p class="text-xs text-gray-500 mb-4">請填入您部署的 Web App URL。設定會自動記錄在您的瀏覽器中。</p>
+            <input type="url" id="apiUrlInput" placeholder="https://script.google.com/macros/s/.../exec" class="w-full border border-gray-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-4 outline-none">
+            <div class="flex justify-end gap-2">
+                <button onclick="toggleSettings()" class="px-4 py-2 text-sm text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-md">取消</button>
+                <button onclick="saveApiUrl()" class="px-4 py-2 text-sm text-white bg-blue-600 hover:bg-blue-700 rounded-md">儲存並連線</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 內容區塊 -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+        
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- 輸入表單 -->
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                <h2 class="text-lg font-semibold mb-4 flex items-center gap-2">
+                    <i data-lucide="plus-circle" class="w-5 h-5 text-green-500"></i>
+                    新增量測紀錄
+                </h2>
+                <form id="recordForm" class="space-y-4" onsubmit="handleFormSubmit(event)">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">日期</label>
+                            <input type="date" id="inputDate" required class="w-full border border-gray-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">時間</label>
+                            <input type="time" id="inputTime" required class="w-full border border-gray-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">收縮壓 (mmHg)</label>
+                            <input type="number" id="inputSys" min="50" max="250" required placeholder="例如: 120" class="w-full border border-gray-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">舒張壓 (mmHg)</label>
+                            <input type="number" id="inputDia" min="30" max="150" required placeholder="例如: 80" class="w-full border border-gray-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">脈搏 (BPM)</label>
+                            <input type="number" id="inputPulse" min="30" max="200" required placeholder="例如: 72" class="w-full border border-gray-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">肩頸緊繃度 (0-10)</label>
+                            <input type="number" id="inputTension" min="0" max="10" required placeholder="0=放鬆, 10=極度僵硬" class="w-full border border-gray-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600 mb-1">備註</label>
+                        <input type="text" id="inputNote" placeholder="例如: 剛喝完咖啡、熬夜..." class="w-full border border-gray-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                    </div>
+
+                    <button type="submit" id="submitBtn" class="w-full bg-blue-600 text-white font-medium py-2 rounded-md hover:bg-blue-700 transition-colors flex justify-center items-center gap-2">
+                        <i data-lucide="save" class="w-4 h-4"></i>
+                        儲存紀錄
+                    </button>
+                </form>
+            </div>
+
+            <!-- 圖表區域 -->
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 lg:col-span-2 flex flex-col">
+                <h2 class="text-lg font-semibold mb-4 flex items-center gap-2">
+                    <i data-lucide="line-chart" class="w-5 h-5 text-purple-500"></i>
+                    數值變化趨勢 (最近10筆)
+                </h2>
+                <div class="flex-1 relative min-h-[300px] w-full">
+                    <canvas id="trendChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- 歷史數據表格 -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            <div class="p-4 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
+                <h2 class="text-lg font-semibold flex items-center gap-2">
+                    <i data-lucide="table" class="w-5 h-5 text-gray-500"></i>
+                    歷史數據清單
+                </h2>
+                <span id="dataStatus" class="text-xs px-2 py-1 rounded bg-gray-200 text-gray-600">本地暫存模式</span>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm text-left whitespace-nowrap">
+                    <thead class="text-xs text-gray-600 bg-gray-50 border-b border-gray-200">
+                        <tr>
+                            <th class="px-4 py-3 font-medium">日期時間</th>
+                            <th class="px-4 py-3 font-medium">收縮壓/舒張壓</th>
+                            <th class="px-4 py-3 font-medium">脈搏</th>
+                            <th class="px-4 py-3 font-medium">肩頸緊繃 (0-10)</th>
+                            <th class="px-4 py-3 font-medium">備註</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody" class="divide-y divide-gray-100">
+                        <!-- 資料由 JS 動態生成 -->
+                    </tbody>
+                </table>
+            </div>
+            <!-- 分頁控制項 -->
+            <div id="paginationControls" class="px-4 py-3 border-t border-gray-200 flex items-center justify-between sm:px-6 bg-white">
+            </div>
+        </div>
+
+    </main>
+
+    <!-- 訊息提示元件 (Toast) -->
+    <div id="toast" class="fixed bottom-4 right-4 px-4 py-3 rounded shadow-xl text-white font-medium text-sm transform transition-all duration-300 translate-y-20 opacity-0 z-50 flex items-center gap-2">
+        <span id="toastIcon"></span>
+        <span id="toastMessage"></span>
+    </div>
+
+    <script>
+        // 初始化 Lucide 圖示
+        lucide.createIcons();
+
+        // 分頁相關狀態
+        let currentPage = 1;
+        const itemsPerPage = 10;
+
+        // 預設 Demo 數據
+        let localData = [
+            { date: '2026-03-24', time: '08:00', sys: 125, dia: 82, pulse: 70, tension: 3, note: '正常作息' },
+            { date: '2026-03-24', time: '20:00', sys: 130, dia: 85, pulse: 75, tension: 6, note: '下班後微累' },
+            { date: '2026-03-25', time: '08:30', sys: 135, dia: 88, pulse: 72, tension: 7, note: '睡不好' },
+            { date: '2026-03-25', time: '21:00', sys: 142, dia: 92, pulse: 80, tension: 9, note: '嚴重緊繃' },
+            { date: '2026-03-26', time: '08:00', sys: 128, dia: 80, pulse: 71, tension: 4, note: '休息後好轉' }
+        ];
+
+        let chartInstance = null;
+        
+        // 讀取瀏覽器 LocalStorage 中的 API 網址 (加入安全防護)
+        let configApiUrl = '';
+        try {
+            configApiUrl = localStorage.getItem('googleSheetApiUrl') || '';
+        } catch (e) {
+            console.warn('環境不支援 LocalStorage 讀取:', e);
+        }
+
+        // 設定目前時間為表單預設值
+        function setDefaultDateTime() {
+            const now = new Date();
+            const localDate = now.toLocaleDateString('en-CA'); // YYYY-MM-DD
+            const localTime = now.toTimeString().substring(0,5); // HH:MM
+            document.getElementById('inputDate').value = localDate;
+            document.getElementById('inputTime').value = localTime;
+        }
+
+        // 顯示訊息提示
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            const toastMessage = document.getElementById('toastMessage');
+            const toastIcon = document.getElementById('toastIcon');
+            
+            toastMessage.textContent = message;
+            
+            if(type === 'success') {
+                toast.className = 'fixed bottom-4 right-4 px-4 py-3 rounded shadow-xl text-white font-medium text-sm transform transition-all duration-300 z-50 flex items-center gap-2 bg-green-600';
+                toastIcon.innerHTML = '<i data-lucide="check-circle" class="w-4 h-4"></i>';
+            } else if (type === 'error') {
+                toast.className = 'fixed bottom-4 right-4 px-4 py-3 rounded shadow-xl text-white font-medium text-sm transform transition-all duration-300 z-50 flex items-center gap-2 bg-red-600';
+                toastIcon.innerHTML = '<i data-lucide="alert-circle" class="w-4 h-4"></i>';
+            } else {
+                toast.className = 'fixed bottom-4 right-4 px-4 py-3 rounded shadow-xl text-white font-medium text-sm transform transition-all duration-300 z-50 flex items-center gap-2 bg-blue-600';
+                toastIcon.innerHTML = '<i data-lucide="info" class="w-4 h-4"></i>';
+            }
+            lucide.createIcons();
+
+            requestAnimationFrame(() => toast.classList.remove('translate-y-20', 'opacity-0'));
+            setTimeout(() => toast.classList.add('translate-y-20', 'opacity-0'), 3000);
+        }
+
+        // 彈出視窗開關
+        function toggleSettings() {
+            const modal = document.getElementById('settingsModal');
+            if(modal.classList.contains('hidden')) {
+                // 開啟時帶入目前的 API 網址
+                document.getElementById('apiUrlInput').value = configApiUrl;
+                modal.classList.remove('hidden');
+            } else {
+                modal.classList.add('hidden');
+            }
+        }
+
+        // 儲存 API URL 至瀏覽器
+        function saveApiUrl() {
+            const inputUrl = document.getElementById('apiUrlInput').value.trim();
+            configApiUrl = inputUrl;
+            let saveMessage = 'API 設定已儲存！';
+            
+            try {
+                localStorage.setItem('googleSheetApiUrl', configApiUrl); // 儲存至 LocalStorage
+            } catch (e) {
+                console.warn('環境不支援 LocalStorage 寫入:', e);
+                saveMessage = 'API 已連線 (提醒: 目前環境限制，無法記憶設定)';
+            }
+            
+            toggleSettings();
+            showToast(saveMessage);
+            fetchData();
+        }
+
+        // 更新介面狀態標示
+        function updateStatusIndicator() {
+            const indicator = document.getElementById('dataStatus');
+            if (configApiUrl) {
+                indicator.textContent = 'API 連線中';
+                indicator.className = 'text-xs px-2 py-1 rounded bg-green-100 text-green-700 font-medium';
+            } else {
+                indicator.textContent = '本地暫存模式';
+                indicator.className = 'text-xs px-2 py-1 rounded bg-gray-200 text-gray-600 font-medium';
+            }
+        }
+
+        // 將原始資料轉換為標準時間戳記 (Timestamp) 供精準排序
+        function getSortableTimestamp(dateRaw, timeRaw) {
+            const dateStr = String(dateRaw).substring(0, 10); // YYYY-MM-DD
+            let timeStr = String(timeRaw);
+            
+            // 處理 GAS 回傳的奇特時間格式
+            if (timeStr.includes('T')) {
+                const tObj = new Date(timeStr);
+                if (!isNaN(tObj.getTime())) {
+                    timeStr = `${String(tObj.getHours()).padStart(2, '0')}:${String(tObj.getMinutes()).padStart(2, '0')}`;
+                } else {
+                    timeStr = timeStr.substring(0, 5);
+                }
+            } else {
+                timeStr = timeStr.substring(0, 5);
+            }
+            
+            // 組合並回傳絕對時間數值
+            return new Date(`${dateStr}T${timeStr}`).getTime();
+        }
+
+        // 格式化顯示用字串 (MM/DD HH:mm)
+        function formatDisplayDateTime(dateRaw, timeRaw) {
+            const dateStr = String(dateRaw).substring(0, 10);
+            const dateParts = dateStr.split('-');
+            const formattedDate = dateParts.length === 3 ? `${dateParts[1]}/${dateParts[2]}` : dateStr;
+
+            let timeStr = String(timeRaw);
+            if (timeStr.includes('T')) {
+                const tObj = new Date(timeStr);
+                if (!isNaN(tObj.getTime())) {
+                    timeStr = `${String(tObj.getHours()).padStart(2, '0')}:${String(tObj.getMinutes()).padStart(2, '0')}`;
+                } else {
+                    timeStr = timeStr.substring(0, 5);
+                }
+            } else {
+                timeStr = timeStr.substring(0, 5);
+            }
+
+            return { formattedDate, formattedTime: timeStr };
+        }
+
+        // 渲染圖表
+        function renderChart(data) {
+            const ctx = document.getElementById('trendChart').getContext('2d');
+            if (chartInstance) chartInstance.destroy();
+
+            // 依時間戳記排序 (由舊到新)，並攔截最後 10 筆
+            const sortedData = [...data]
+                .sort((a, b) => getSortableTimestamp(a.date, a.time) - getSortableTimestamp(b.date, b.time))
+                .slice(-10);
+            
+            const labels = sortedData.map(d => {
+                const { formattedDate, formattedTime } = formatDisplayDateTime(d.date, d.time);
+                return `${formattedDate} ${formattedTime}`;
+            });
+
+            chartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        { label: '收縮壓', data: sortedData.map(d => d.sys), borderColor: '#EF4444', backgroundColor: '#EF4444', yAxisID: 'y-bp', tension: 0.3 },
+                        { label: '舒張壓', data: sortedData.map(d => d.dia), borderColor: '#3B82F6', backgroundColor: '#3B82F6', yAxisID: 'y-bp', tension: 0.3 },
+                        { label: '脈搏', data: sortedData.map(d => d.pulse), borderColor: '#10B981', backgroundColor: '#10B981', yAxisID: 'y-bp', borderDash: [5, 5], tension: 0.3, hidden: true },
+                        { label: '肩頸緊繃度', data: sortedData.map(d => d.tension), borderColor: '#8B5CF6', backgroundColor: 'rgba(139, 92, 246, 0.2)', yAxisID: 'y-tension', type: 'bar', borderRadius: 4 }
+                    ]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    scales: {
+                        'y-bp': { type: 'linear', position: 'left', title: { display: true, text: '血壓 / 脈搏 (mmHg/BPM)', font: {size: 10} }, suggestedMin: 60, suggestedMax: 160 },
+                        'y-tension': { type: 'linear', position: 'right', title: { display: true, text: '緊繃度 (0-10)', font: {size: 10} }, min: 0, max: 10, grid: { drawOnChartArea: false } }
+                    },
+                    plugins: { legend: { position: 'top', labels: { boxWidth: 12, usePointStyle: true } }, tooltip: { backgroundColor: 'rgba(17, 24, 39, 0.9)', padding: 12 } }
+                }
+            });
+        }
+
+        // 渲染表格
+        function renderTable(data) {
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = '';
+            
+            // 依時間戳記反向排序 (由新到舊)
+            const sortedData = [...data].sort((a, b) => getSortableTimestamp(b.date, b.time) - getSortableTimestamp(a.date, a.time));
+
+            const totalPages = Math.ceil(sortedData.length / itemsPerPage) || 1;
+            if (currentPage > totalPages) currentPage = totalPages;
+
+            const startIndex = (currentPage - 1) * itemsPerPage;
+            const endIndex = startIndex + itemsPerPage;
+            const paginatedData = sortedData.slice(startIndex, endIndex);
+
+            paginatedData.forEach(row => {
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-gray-50 transition-colors';
+                
+                const isHighBP = row.sys > 130 || row.dia > 80;
+                const bpClass = isHighBP ? 'text-red-600 font-medium' : 'text-gray-900';
+                const tensionColor = row.tension >= 7 ? 'bg-red-100 text-red-700' : (row.tension >= 4 ? 'bg-yellow-100 text-yellow-700' : 'bg-green-100 text-green-700');
+                const { formattedDate, formattedTime } = formatDisplayDateTime(row.date, row.time);
+
+                tr.innerHTML = `
+                    <td class="px-4 py-3 text-gray-700">${formattedDate} <span class="text-gray-400 ml-1">${formattedTime}</span></td>
+                    <td class="px-4 py-3 ${bpClass}">${row.sys} / ${row.dia}</td>
+                    <td class="px-4 py-3 text-gray-700">${row.pulse}</td>
+                    <td class="px-4 py-3"><span class="px-2 py-1 rounded text-xs font-medium ${tensionColor}">${row.tension}</span></td>
+                    <td class="px-4 py-3 text-gray-500 text-xs truncate max-w-[150px]" title="${row.note || ''}">${row.note || '-'}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            renderPagination(totalPages, sortedData.length);
+        }
+
+        // 渲染分頁控制列
+        function renderPagination(totalPages, totalItems) {
+            const container = document.getElementById('paginationControls');
+            if (!container) return;
+
+            let html = `
+                <div class="flex-1 flex justify-between sm:hidden">
+                    <button onclick="changePage(-1)" ${currentPage === 1 ? 'disabled' : ''} class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50">上一頁</button>
+                    <button onclick="changePage(1)" ${currentPage === totalPages ? 'disabled' : ''} class="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50">下一頁</button>
+                </div>
+                <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                    <div><p class="text-sm text-gray-700">第 <span class="font-medium">${currentPage}</span> 頁 / 共 <span class="font-medium">${totalPages}</span> 頁 (總計 ${totalItems} 筆)</p></div>
+                    <div>
+                        <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
+                            <button onclick="changePage(-1)" ${currentPage === 1 ? 'disabled' : ''} class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50">
+                                <span class="sr-only">Previous</span><i data-lucide="chevron-left" class="h-4 w-4"></i>
+                            </button>
+                            <button onclick="changePage(1)" ${currentPage === totalPages ? 'disabled' : ''} class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50">
+                                <span class="sr-only">Next</span><i data-lucide="chevron-right" class="h-4 w-4"></i>
+                            </button>
+                        </nav>
+                    </div>
+                </div>
+            `;
+            container.innerHTML = html;
+            lucide.createIcons();
+        }
+
+        function changePage(delta) {
+            currentPage += delta;
+            renderTable(localData);
+        }
+
+        // 取得資料
+        async function fetchData() {
+            updateStatusIndicator();
+            if (!configApiUrl) {
+                renderChart(localData);
+                renderTable(localData);
+                return;
+            }
+
+            try {
+                showToast('正在從 Google Sheets 載入資料...', 'info');
+                const response = await fetch(configApiUrl, { method: 'GET', redirect: 'follow' });
+                const result = await response.json();
+                
+                if (Array.isArray(result)) {
+                    localData = result;
+                    renderChart(localData);
+                    renderTable(localData);
+                    showToast('資料同步成功！');
+                } else {
+                    throw new Error('資料格式錯誤');
+                }
+            } catch (error) {
+                console.error("Fetch Error:", error);
+                showToast('API 連線失敗，切換為本地預覽', 'error');
+                renderChart(localData);
+                renderTable(localData);
+            }
+        }
+
+        // 處理表單送出
+        async function handleFormSubmit(e) {
+            e.preventDefault();
+            
+            const btn = document.getElementById('submitBtn');
+            const originalBtnText = btn.innerHTML;
+            btn.innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> 儲存中...';
+            btn.disabled = true;
+            lucide.createIcons();
+
+            const newRecord = {
+                date: document.getElementById('inputDate').value,
+                time: document.getElementById('inputTime').value,
+                sys: parseInt(document.getElementById('inputSys').value, 10),
+                dia: parseInt(document.getElementById('inputDia').value, 10),
+                pulse: parseInt(document.getElementById('inputPulse').value, 10),
+                tension: parseInt(document.getElementById('inputTension').value, 10),
+                note: document.getElementById('inputNote').value
+            };
+
+            if (configApiUrl) {
+                try {
+                    const response = await fetch(configApiUrl, {
+                        method: 'POST',
+                        redirect: 'follow',
+                        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                        body: JSON.stringify(newRecord)
+                    });
+                    const result = await response.json();
+                    
+                    if(result.status === 'success') {
+                        showToast('已成功寫入 Google Sheets！');
+                        localData.push(newRecord);
+                        currentPage = 1;
+                        renderChart(localData);
+                        renderTable(localData);
+                        document.getElementById('inputNote').value = ''; 
+                    } else {
+                        throw new Error(result.message || '寫入失敗');
+                    }
+                } catch (error) {
+                    console.error("Post Error:", error);
+                    showToast('寫入雲端失敗，已暫存至本地', 'error');
+                    localData.push(newRecord);
+                    currentPage = 1;
+                    renderChart(localData);
+                    renderTable(localData);
+                }
+            } else {
+                localData.push(newRecord);
+                currentPage = 1;
+                renderChart(localData);
+                renderTable(localData);
+                showToast('已儲存至本地記憶體');
+                document.getElementById('inputNote').value = ''; 
+            }
+
+            btn.innerHTML = originalBtnText;
+            btn.disabled = false;
+            lucide.createIcons();
+        }
+
+        // 網頁載入時初始化
+        window.onload = () => {
+            setDefaultDateTime();
+            fetchData(); // 這裡會自動使用 localStorage 中的 URL 載入資料
+        };
+
+    </script>
+</body>
+</html>
