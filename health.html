@@ -339,7 +339,7 @@
             tbody.innerHTML = '';
             
             // 依時間戳記反向排序 (由新到舊)
-            const sortedData = [...data].sort((a, b) => getSortableTimestamp(b.date, b.time) - getSortableTimestamp(a.date, a.time));
+            const sortedData = [...data].sort((a, b) => getSortableTimestamp(a.date, a.time) - getSortableTimestamp(b.date, b.time));
 
             const totalPages = Math.ceil(sortedData.length / itemsPerPage) || 1;
             if (currentPage > totalPages) currentPage = totalPages;
