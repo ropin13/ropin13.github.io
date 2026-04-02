@@ -177,7 +177,7 @@
         // 設定目前時間為表單預設值
         function setDefaultDateTime() {
             const now = new Date();
-            const localDate = now.toLocaleDateString('tw-ZH'); // YYYY-MM-DD
+            const localDate = now.toLocaleDateString('zh-TW'); // YYYY-MM-DD
             const localTime = now.toTimeString().substring(0,5); // HH:MM
             document.getElementById('inputDate').value = localDate;
             document.getElementById('inputTime').value = localTime;
