@@ -174,13 +174,45 @@
             console.warn('環境不支援 LocalStorage 讀取:', e);
         }
 
+        // 轉換 Date 物件為 input[type="date"] 可用格式 (YYYY-MM-DD)
+        function toLocalDateInputValue(dateObj) {
+            const tzOffsetMs = dateObj.getTimezoneOffset() * 60 * 1000;
+            return new Date(dateObj.getTime() - tzOffsetMs).toISOString().slice(0, 10);
+        }
+
         // 設定目前時間為表單預設值
         function setDefaultDateTime() {
             const now = new Date();
-            const localDate = now.toLocaleDateString('zh-TW'); // YYYY-MM-DD
+            const localDate = toLocalDateInputValue(now); // YYYY-MM-DD
             const localTime = now.toTimeString().substring(0,5); // HH:MM
             document.getElementById('inputDate').value = localDate;
             document.getElementById('inputTime').value = localTime;
+        }
+
+        // 將各種日期來源正規化為 YYYY-MM-DD，避免排序/顯示異常
+        function normalizeDateString(dateRaw) {
+            if (!dateRaw) return '';
+
+            if (dateRaw instanceof Date && !isNaN(dateRaw.getTime())) {
+                return toLocalDateInputValue(dateRaw);
+            }
+
+            const raw = String(dateRaw).trim();
+            if (!raw) return '';
+
+            // 常見格式: YYYY-MM-DD、YYYY/MM/DD、YYYY-MM-DDTHH:mm:ss...
+            const directDateMatch = raw.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
+            if (directDateMatch) {
+                const [, y, m, d] = directDateMatch;
+                return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+            }
+
+            const parsed = new Date(raw);
+            if (!isNaN(parsed.getTime())) {
+                return toLocalDateInputValue(parsed);
+            }
+
+            return raw.substring(0, 10).replace(/\//g, '-');
         }
 
         // 顯示訊息提示
@@ -251,7 +283,7 @@
 
         // 將原始資料轉換為標準時間戳記 (Timestamp) 供精準排序
         function getSortableTimestamp(dateRaw, timeRaw) {
-            const dateStr = String(dateRaw).substring(0, 10); // YYYY-MM-DD
+            const dateStr = normalizeDateString(dateRaw); // YYYY-MM-DD
             let timeStr = String(timeRaw);
             
             // 處理 GAS 回傳的奇特時間格式
@@ -267,12 +299,13 @@
             }
             
             // 組合並回傳絕對時間數值
-            return new Date(`${dateStr}T${timeStr}`).getTime();
+            const ts = new Date(`${dateStr}T${timeStr}`).getTime();
+            return Number.isNaN(ts) ? 0 : ts;
         }
 
         // 格式化顯示用字串 (MM/DD HH:mm)
         function formatDisplayDateTime(dateRaw, timeRaw) {
-            const dateStr = String(dateRaw).substring(0, 10);
+            const dateStr = normalizeDateString(dateRaw);
             const dateParts = dateStr.split('-');
             const formattedDate = dateParts.length === 3 ? `${dateParts[1]}/${dateParts[2]}` : dateStr;
 
@@ -302,8 +335,8 @@
                 .slice(-10);
             
             const labels = sortedData.map(d => {
-                const { formattedDate, formattedTime } = formatDisplayDateTime(d.date, d.time);
-                return `${formattedDate} ${formattedTime}`;
+                const { formattedDate } = formatDisplayDateTime(d.date, d.time);
+                return formattedDate;
             });
 
             chartInstance = new Chart(ctx, {
