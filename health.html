@@ -43,8 +43,20 @@
 
     <!-- 內容區塊 -->
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+        <section class="bg-blue-50 border border-blue-100 rounded-xl p-4 sm:p-5">
+            <h2 class="text-base sm:text-lg font-semibold text-blue-900 flex items-center gap-2">
+                <i data-lucide="book-open" class="w-5 h-5"></i>
+                使用說明
+            </h2>
+            <ol class="mt-3 list-decimal list-inside text-sm text-blue-900 space-y-1.5 leading-6">
+                <li>先在右上角「設定 API」填入 Google Apps Script Web App URL，若未設定則使用本地暫存模式。</li>
+                <li>於「新增量測紀錄」輸入日期、時間與生理數據後，點擊「儲存紀錄」。</li>
+                <li>「歷史數據清單」會依 <span class="font-semibold">年月日時間由新到舊</span> 排序，最新資料會顯示在最上方。</li>
+                <li>「數值變化趨勢」圖表顯示最近七天資料，可用於快速觀察變化。</li>
+            </ol>
+        </section>
         
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
             <!-- 輸入表單 -->
             <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
                 <h2 class="text-lg font-semibold mb-4 flex items-center gap-2">
@@ -101,11 +113,22 @@
             <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 lg:col-span-2 flex flex-col">
                 <h2 class="text-lg font-semibold mb-4 flex items-center gap-2">
                     <i data-lucide="line-chart" class="w-5 h-5 text-purple-500"></i>
-                    數值變化趨勢 (最近10筆)
+                    數值變化趨勢 (最近七天)
                 </h2>
                 <div class="flex-1 relative min-h-[300px] w-full">
                     <canvas id="trendChart"></canvas>
                 </div>
+            </div>
+
+            <!-- 最近七天平均血壓資訊 -->
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 lg:col-span-1">
+                <h2 class="text-lg font-semibold mb-4 flex items-center gap-2">
+                    <i data-lucide="heart-pulse" class="w-5 h-5 text-rose-500"></i>
+                    最近七天平均血壓
+                </h2>
+                <p id="avgBp7d" class="text-2xl font-bold text-gray-900">-- / --</p>
+                <p class="mt-2 text-sm text-gray-600">標準血壓 &lt;130/80 mmHg</p>
+                <p id="avgBp7dCount" class="mt-3 text-xs text-gray-500">最近七天無資料</p>
             </div>
         </div>
 
@@ -363,10 +386,19 @@
             const ctx = document.getElementById('trendChart').getContext('2d');
             if (chartInstance) chartInstance.destroy();
 
-            // 依時間戳記排序 (由舊到新)，並攔截最後 10 筆
+            // 篩選最近七天資料（以資料中的最新時間為基準），再依時間由舊到新排序
+            const timestamps = data
+                .map(d => getSortableTimestamp(d.date, d.time))
+                .filter(ts => ts > 0);
+            const latestTs = timestamps.length ? Math.max(...timestamps) : Date.now();
+            const startTs = latestTs - (6 * 24 * 60 * 60 * 1000);
+
             const sortedData = [...data]
-                .sort((a, b) => getSortableTimestamp(a.date, a.time) - getSortableTimestamp(b.date, b.time))
-                .slice(-10);
+                .filter(d => {
+                    const ts = getSortableTimestamp(d.date, d.time);
+                    return ts >= startTs && ts <= latestTs;
+                })
+                .sort((a, b) => getSortableTimestamp(a.date, a.time) - getSortableTimestamp(b.date, b.time));
             
             const labels = sortedData.map(d => {
                 const { formattedDate } = formatDisplayDateTime(d.date, d.time);
@@ -394,6 +426,42 @@
                     plugins: { legend: { position: 'top', labels: { boxWidth: 12, usePointStyle: true } }, tooltip: { backgroundColor: 'rgba(17, 24, 39, 0.9)', padding: 12 } }
                 }
             });
+        }
+
+
+
+        // 計算並顯示最近七天平均血壓
+        function updateSevenDayAverage(data) {
+            const avgText = document.getElementById('avgBp7d');
+            const countText = document.getElementById('avgBp7dCount');
+            if (!avgText || !countText) return;
+
+            const timestamps = data
+                .map(d => getSortableTimestamp(d.date, d.time))
+                .filter(ts => ts > 0);
+            if (!timestamps.length) {
+                avgText.textContent = '-- / --';
+                countText.textContent = '最近七天無資料';
+                return;
+            }
+
+            const latestTs = Math.max(...timestamps);
+            const startTs = latestTs - (6 * 24 * 60 * 60 * 1000);
+            const last7Days = data.filter(d => {
+                const ts = getSortableTimestamp(d.date, d.time);
+                return ts >= startTs && ts <= latestTs;
+            });
+
+            if (!last7Days.length) {
+                avgText.textContent = '-- / --';
+                countText.textContent = '最近七天無資料';
+                return;
+            }
+
+            const avgSys = (last7Days.reduce((sum, d) => sum + Number(d.sys || 0), 0) / last7Days.length).toFixed(1);
+            const avgDia = (last7Days.reduce((sum, d) => sum + Number(d.dia || 0), 0) / last7Days.length).toFixed(1);
+            avgText.textContent = `${avgSys} / ${avgDia}`;
+            countText.textContent = `統計筆數：${last7Days.length} 筆`;
         }
 
         // 渲染表格
@@ -471,6 +539,7 @@
             updateStatusIndicator();
             if (!configApiUrl) {
                 renderChart(localData);
+                updateSevenDayAverage(localData);
                 renderTable(localData);
                 return;
             }
@@ -483,6 +552,7 @@
                 if (Array.isArray(result)) {
                     localData = result;
                     renderChart(localData);
+                    updateSevenDayAverage(localData);
                     renderTable(localData);
                     showToast('資料同步成功！');
                 } else {
@@ -492,6 +562,7 @@
                 console.error("Fetch Error:", error);
                 showToast('API 連線失敗，切換為本地預覽', 'error');
                 renderChart(localData);
+                updateSevenDayAverage(localData);
                 renderTable(localData);
             }
         }
@@ -531,6 +602,7 @@
                         localData.push(newRecord);
                         currentPage = 1;
                         renderChart(localData);
+                        updateSevenDayAverage(localData);
                         renderTable(localData);
                         document.getElementById('inputNote').value = ''; 
                     } else {
@@ -542,12 +614,14 @@
                     localData.push(newRecord);
                     currentPage = 1;
                     renderChart(localData);
+                    updateSevenDayAverage(localData);
                     renderTable(localData);
                 }
             } else {
                 localData.push(newRecord);
                 currentPage = 1;
                 renderChart(localData);
+                updateSevenDayAverage(localData);
                 renderTable(localData);
                 showToast('已儲存至本地記憶體');
                 document.getElementById('inputNote').value = ''; 
