@@ -283,24 +283,68 @@
 
         // 將原始資料轉換為標準時間戳記 (Timestamp) 供精準排序
         function getSortableTimestamp(dateRaw, timeRaw) {
-            const dateStr = normalizeDateString(dateRaw); // YYYY-MM-DD
-            let timeStr = String(timeRaw);
-            
-            // 處理 GAS 回傳的奇特時間格式
-            if (timeStr.includes('T')) {
-                const tObj = new Date(timeStr);
-                if (!isNaN(tObj.getTime())) {
-                    timeStr = `${String(tObj.getHours()).padStart(2, '0')}:${String(tObj.getMinutes()).padStart(2, '0')}`;
-                } else {
-                    timeStr = timeStr.substring(0, 5);
-                }
-            } else {
-                timeStr = timeStr.substring(0, 5);
+            const dateText = dateRaw == null ? '' : String(dateRaw).trim();
+            const timeText = timeRaw == null ? '' : String(timeRaw).trim();
+
+            // 優先用 date + time 組成完整時間
+            const normalizedDate = normalizeDateString(dateRaw);
+            const normalizedTime = normalizeTimeString(timeRaw);
+            const combinedTs = new Date(`${normalizedDate}T${normalizedTime}`).getTime();
+            if (!Number.isNaN(combinedTs)) return combinedTs;
+
+            // 後備：若 date 欄位其實已帶完整日期時間（例如 GAS/Sheet 回傳）
+            const dateOnlyTs = new Date(dateText).getTime();
+            if (!Number.isNaN(dateOnlyTs)) return dateOnlyTs;
+
+            // 後備：若時間是 Excel/Sheet 時間序列（0~1）
+            const serialTime = Number(timeText);
+            if (!Number.isNaN(serialTime) && serialTime >= 0 && serialTime < 1) {
+                const hour = Math.floor(serialTime * 24);
+                const minute = Math.floor((serialTime * 24 - hour) * 60);
+                const fallbackTs = new Date(`${normalizedDate}T${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`).getTime();
+                if (!Number.isNaN(fallbackTs)) return fallbackTs;
             }
-            
-            // 組合並回傳絕對時間數值
-            const ts = new Date(`${dateStr}T${timeStr}`).getTime();
-            return Number.isNaN(ts) ? 0 : ts;
+
+            return 0;
+        }
+
+        // 將各種 time 字串正規化為 HH:mm
+        function normalizeTimeString(timeRaw) {
+            if (timeRaw == null) return '00:00';
+
+            const raw = String(timeRaw).trim();
+            if (!raw) return '00:00';
+
+            if (raw.includes('T')) {
+                const tObj = new Date(raw);
+                if (!isNaN(tObj.getTime())) {
+                    return `${String(tObj.getHours()).padStart(2, '0')}:${String(tObj.getMinutes()).padStart(2, '0')}`;
+                }
+            }
+
+            const ampmMatch = raw.match(/^(\d{1,2}):(\d{1,2})(?::\d{1,2})?\s*(AM|PM)$/i);
+            if (ampmMatch) {
+                let [, h, m, ap] = ampmMatch;
+                let hour = parseInt(h, 10) % 12;
+                if (ap.toUpperCase() === 'PM') hour += 12;
+                return `${String(hour).padStart(2, '0')}:${String(parseInt(m, 10)).padStart(2, '0')}`;
+            }
+
+            const hmMatch = raw.match(/^(\d{1,2}):(\d{1,2})/);
+            if (hmMatch) {
+                const hour = Math.min(23, parseInt(hmMatch[1], 10));
+                const minute = Math.min(59, parseInt(hmMatch[2], 10));
+                return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+            }
+
+            const num = Number(raw);
+            if (!Number.isNaN(num) && num >= 0 && num < 1) {
+                const hour = Math.floor(num * 24);
+                const minute = Math.floor((num * 24 - hour) * 60);
+                return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+            }
+
+            return raw.substring(0, 5);
         }
 
         // 格式化顯示用字串 (MM/DD HH:mm)
@@ -309,17 +353,7 @@
             const dateParts = dateStr.split('-');
             const formattedDate = dateParts.length === 3 ? `${dateParts[1]}/${dateParts[2]}` : dateStr;
 
-            let timeStr = String(timeRaw);
-            if (timeStr.includes('T')) {
-                const tObj = new Date(timeStr);
-                if (!isNaN(tObj.getTime())) {
-                    timeStr = `${String(tObj.getHours()).padStart(2, '0')}:${String(tObj.getMinutes()).padStart(2, '0')}`;
-                } else {
-                    timeStr = timeStr.substring(0, 5);
-                }
-            } else {
-                timeStr = timeStr.substring(0, 5);
-            }
+            const timeStr = normalizeTimeString(timeRaw);
 
             return { formattedDate, formattedTime: timeStr };
         }
