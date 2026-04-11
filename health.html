@@ -43,8 +43,20 @@
 
     <!-- 內容區塊 -->
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+        <section class="bg-blue-50 border border-blue-100 rounded-xl p-4 sm:p-5">
+            <h2 class="text-base sm:text-lg font-semibold text-blue-900 flex items-center gap-2">
+                <i data-lucide="book-open" class="w-5 h-5"></i>
+                使用說明
+            </h2>
+            <ol class="mt-3 list-decimal list-inside text-sm text-blue-900 space-y-1.5 leading-6">
+                <li>先在右上角「設定 API」填入 Google Apps Script Web App URL，若未設定則使用本地暫存模式。</li>
+                <li>於「新增量測紀錄」輸入日期、時間與生理數據後，點擊「儲存紀錄」。</li>
+                <li>「歷史數據清單」會依 <span class="font-semibold">年月日時間由新到舊</span> 排序，最新資料會顯示在最上方。</li>
+                <li>「數值變化趨勢」圖表顯示最近七天資料，可用於快速觀察變化。</li>
+            </ol>
+        </section>
         
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
             <!-- 輸入表單 -->
             <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
                 <h2 class="text-lg font-semibold mb-4 flex items-center gap-2">
@@ -101,11 +113,22 @@
             <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 lg:col-span-2 flex flex-col">
                 <h2 class="text-lg font-semibold mb-4 flex items-center gap-2">
                     <i data-lucide="line-chart" class="w-5 h-5 text-purple-500"></i>
-                    數值變化趨勢 (最近10筆)
+                    數值變化趨勢 (最近七天)
                 </h2>
                 <div class="flex-1 relative min-h-[300px] w-full">
                     <canvas id="trendChart"></canvas>
                 </div>
+            </div>
+
+            <!-- 最近七天平均血壓資訊 -->
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 lg:col-span-1">
+                <h2 class="text-lg font-semibold mb-4 flex items-center gap-2">
+                    <i data-lucide="heart-pulse" class="w-5 h-5 text-rose-500"></i>
+                    最近七天平均血壓
+                </h2>
+                <p id="avgBp7d" class="text-2xl font-bold text-gray-900">-- / --</p>
+                <p class="mt-2 text-sm text-gray-600">標準血壓 &lt;130/80 mmHg</p>
+                <p id="avgBp7dCount" class="mt-3 text-xs text-gray-500">最近七天無資料</p>
             </div>
         </div>
 
@@ -283,24 +306,68 @@
 
         // 將原始資料轉換為標準時間戳記 (Timestamp) 供精準排序
         function getSortableTimestamp(dateRaw, timeRaw) {
-            const dateStr = normalizeDateString(dateRaw); // YYYY-MM-DD
-            let timeStr = String(timeRaw);
-            
-            // 處理 GAS 回傳的奇特時間格式
-            if (timeStr.includes('T')) {
-                const tObj = new Date(timeStr);
-                if (!isNaN(tObj.getTime())) {
-                    timeStr = `${String(tObj.getHours()).padStart(2, '0')}:${String(tObj.getMinutes()).padStart(2, '0')}`;
-                } else {
-                    timeStr = timeStr.substring(0, 5);
-                }
-            } else {
-                timeStr = timeStr.substring(0, 5);
+            const dateText = dateRaw == null ? '' : String(dateRaw).trim();
+            const timeText = timeRaw == null ? '' : String(timeRaw).trim();
+
+            // 優先用 date + time 組成完整時間
+            const normalizedDate = normalizeDateString(dateRaw);
+            const normalizedTime = normalizeTimeString(timeRaw);
+            const combinedTs = new Date(`${normalizedDate}T${normalizedTime}`).getTime();
+            if (!Number.isNaN(combinedTs)) return combinedTs;
+
+            // 後備：若 date 欄位其實已帶完整日期時間（例如 GAS/Sheet 回傳）
+            const dateOnlyTs = new Date(dateText).getTime();
+            if (!Number.isNaN(dateOnlyTs)) return dateOnlyTs;
+
+            // 後備：若時間是 Excel/Sheet 時間序列（0~1）
+            const serialTime = Number(timeText);
+            if (!Number.isNaN(serialTime) && serialTime >= 0 && serialTime < 1) {
+                const hour = Math.floor(serialTime * 24);
+                const minute = Math.floor((serialTime * 24 - hour) * 60);
+                const fallbackTs = new Date(`${normalizedDate}T${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`).getTime();
+                if (!Number.isNaN(fallbackTs)) return fallbackTs;
             }
-            
-            // 組合並回傳絕對時間數值
-            const ts = new Date(`${dateStr}T${timeStr}`).getTime();
-            return Number.isNaN(ts) ? 0 : ts;
+
+            return 0;
+        }
+
+        // 將各種 time 字串正規化為 HH:mm
+        function normalizeTimeString(timeRaw) {
+            if (timeRaw == null) return '00:00';
+
+            const raw = String(timeRaw).trim();
+            if (!raw) return '00:00';
+
+            if (raw.includes('T')) {
+                const tObj = new Date(raw);
+                if (!isNaN(tObj.getTime())) {
+                    return `${String(tObj.getHours()).padStart(2, '0')}:${String(tObj.getMinutes()).padStart(2, '0')}`;
+                }
+            }
+
+            const ampmMatch = raw.match(/^(\d{1,2}):(\d{1,2})(?::\d{1,2})?\s*(AM|PM)$/i);
+            if (ampmMatch) {
+                let [, h, m, ap] = ampmMatch;
+                let hour = parseInt(h, 10) % 12;
+                if (ap.toUpperCase() === 'PM') hour += 12;
+                return `${String(hour).padStart(2, '0')}:${String(parseInt(m, 10)).padStart(2, '0')}`;
+            }
+
+            const hmMatch = raw.match(/^(\d{1,2}):(\d{1,2})/);
+            if (hmMatch) {
+                const hour = Math.min(23, parseInt(hmMatch[1], 10));
+                const minute = Math.min(59, parseInt(hmMatch[2], 10));
+                return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+            }
+
+            const num = Number(raw);
+            if (!Number.isNaN(num) && num >= 0 && num < 1) {
+                const hour = Math.floor(num * 24);
+                const minute = Math.floor((num * 24 - hour) * 60);
+                return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+            }
+
+            return raw.substring(0, 5);
         }
 
         // 格式化顯示用字串 (MM/DD HH:mm)
@@ -309,17 +376,7 @@
             const dateParts = dateStr.split('-');
             const formattedDate = dateParts.length === 3 ? `${dateParts[1]}/${dateParts[2]}` : dateStr;
 
-            let timeStr = String(timeRaw);
-            if (timeStr.includes('T')) {
-                const tObj = new Date(timeStr);
-                if (!isNaN(tObj.getTime())) {
-                    timeStr = `${String(tObj.getHours()).padStart(2, '0')}:${String(tObj.getMinutes()).padStart(2, '0')}`;
-                } else {
-                    timeStr = timeStr.substring(0, 5);
-                }
-            } else {
-                timeStr = timeStr.substring(0, 5);
-            }
+            const timeStr = normalizeTimeString(timeRaw);
 
             return { formattedDate, formattedTime: timeStr };
         }
@@ -329,10 +386,19 @@
             const ctx = document.getElementById('trendChart').getContext('2d');
             if (chartInstance) chartInstance.destroy();
 
-            // 依時間戳記排序 (由舊到新)，並攔截最後 10 筆
+            // 篩選最近七天資料（以資料中的最新時間為基準），再依時間由舊到新排序
+            const timestamps = data
+                .map(d => getSortableTimestamp(d.date, d.time))
+                .filter(ts => ts > 0);
+            const latestTs = timestamps.length ? Math.max(...timestamps) : Date.now();
+            const startTs = latestTs - (6 * 24 * 60 * 60 * 1000);
+
             const sortedData = [...data]
-                .sort((a, b) => getSortableTimestamp(a.date, a.time) - getSortableTimestamp(b.date, b.time))
-                .slice(-10);
+                .filter(d => {
+                    const ts = getSortableTimestamp(d.date, d.time);
+                    return ts >= startTs && ts <= latestTs;
+                })
+                .sort((a, b) => getSortableTimestamp(a.date, a.time) - getSortableTimestamp(b.date, b.time));
             
             const labels = sortedData.map(d => {
                 const { formattedDate } = formatDisplayDateTime(d.date, d.time);
@@ -360,6 +426,42 @@
                     plugins: { legend: { position: 'top', labels: { boxWidth: 12, usePointStyle: true } }, tooltip: { backgroundColor: 'rgba(17, 24, 39, 0.9)', padding: 12 } }
                 }
             });
+        }
+
+
+
+        // 計算並顯示最近七天平均血壓
+        function updateSevenDayAverage(data) {
+            const avgText = document.getElementById('avgBp7d');
+            const countText = document.getElementById('avgBp7dCount');
+            if (!avgText || !countText) return;
+
+            const timestamps = data
+                .map(d => getSortableTimestamp(d.date, d.time))
+                .filter(ts => ts > 0);
+            if (!timestamps.length) {
+                avgText.textContent = '-- / --';
+                countText.textContent = '最近七天無資料';
+                return;
+            }
+
+            const latestTs = Math.max(...timestamps);
+            const startTs = latestTs - (6 * 24 * 60 * 60 * 1000);
+            const last7Days = data.filter(d => {
+                const ts = getSortableTimestamp(d.date, d.time);
+                return ts >= startTs && ts <= latestTs;
+            });
+
+            if (!last7Days.length) {
+                avgText.textContent = '-- / --';
+                countText.textContent = '最近七天無資料';
+                return;
+            }
+
+            const avgSys = (last7Days.reduce((sum, d) => sum + Number(d.sys || 0), 0) / last7Days.length).toFixed(1);
+            const avgDia = (last7Days.reduce((sum, d) => sum + Number(d.dia || 0), 0) / last7Days.length).toFixed(1);
+            avgText.textContent = `${avgSys} / ${avgDia}`;
+            countText.textContent = `統計筆數：${last7Days.length} 筆`;
         }
 
         // 渲染表格
@@ -437,6 +539,7 @@
             updateStatusIndicator();
             if (!configApiUrl) {
                 renderChart(localData);
+                updateSevenDayAverage(localData);
                 renderTable(localData);
                 return;
             }
@@ -449,6 +552,7 @@
                 if (Array.isArray(result)) {
                     localData = result;
                     renderChart(localData);
+                    updateSevenDayAverage(localData);
                     renderTable(localData);
                     showToast('資料同步成功！');
                 } else {
@@ -458,6 +562,7 @@
                 console.error("Fetch Error:", error);
                 showToast('API 連線失敗，切換為本地預覽', 'error');
                 renderChart(localData);
+                updateSevenDayAverage(localData);
                 renderTable(localData);
             }
         }
@@ -497,6 +602,7 @@
                         localData.push(newRecord);
                         currentPage = 1;
                         renderChart(localData);
+                        updateSevenDayAverage(localData);
                         renderTable(localData);
                         document.getElementById('inputNote').value = ''; 
                     } else {
@@ -508,12 +614,14 @@
                     localData.push(newRecord);
                     currentPage = 1;
                     renderChart(localData);
+                    updateSevenDayAverage(localData);
                     renderTable(localData);
                 }
             } else {
                 localData.push(newRecord);
                 currentPage = 1;
                 renderChart(localData);
+                updateSevenDayAverage(localData);
                 renderTable(localData);
                 showToast('已儲存至本地記憶體');
                 document.getElementById('inputNote').value = ''; 
