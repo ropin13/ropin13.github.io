@@ -399,9 +399,42 @@
                     return ts >= startTs && ts <= latestTs;
                 })
                 .sort((a, b) => getSortableTimestamp(a.date, a.time) - getSortableTimestamp(b.date, b.time));
-            
-            const labels = sortedData.map(d => {
-                const { formattedDate } = formatDisplayDateTime(d.date, d.time);
+
+            // 同一天可能有多筆資料，先做日平均後再繪圖
+            const dailyMap = new Map();
+            sortedData.forEach(d => {
+                const dateKey = normalizeDateString(d.date);
+                if (!dailyMap.has(dateKey)) {
+                    dailyMap.set(dateKey, {
+                        date: dateKey,
+                        sysSum: 0,
+                        diaSum: 0,
+                        pulseSum: 0,
+                        tensionSum: 0,
+                        count: 0
+                    });
+                }
+
+                const day = dailyMap.get(dateKey);
+                day.sysSum += Number(d.sys || 0);
+                day.diaSum += Number(d.dia || 0);
+                day.pulseSum += Number(d.pulse || 0);
+                day.tensionSum += Number(d.tension || 0);
+                day.count += 1;
+            });
+
+            const dailyData = [...dailyMap.values()]
+                .sort((a, b) => new Date(`${a.date}T00:00`).getTime() - new Date(`${b.date}T00:00`).getTime())
+                .map(day => ({
+                    date: day.date,
+                    sys: Number((day.sysSum / day.count).toFixed(1)),
+                    dia: Number((day.diaSum / day.count).toFixed(1)),
+                    pulse: Number((day.pulseSum / day.count).toFixed(1)),
+                    tension: Number((day.tensionSum / day.count).toFixed(1))
+                }));
+
+            const labels = dailyData.map(d => {
+                const { formattedDate } = formatDisplayDateTime(d.date, '00:00');
                 return formattedDate;
             });
 
@@ -410,10 +443,10 @@
                 data: {
                     labels: labels,
                     datasets: [
-                        { label: '收縮壓', data: sortedData.map(d => d.sys), borderColor: '#EF4444', backgroundColor: '#EF4444', yAxisID: 'y-bp', tension: 0.3 },
-                        { label: '舒張壓', data: sortedData.map(d => d.dia), borderColor: '#3B82F6', backgroundColor: '#3B82F6', yAxisID: 'y-bp', tension: 0.3 },
-                        { label: '脈搏', data: sortedData.map(d => d.pulse), borderColor: '#10B981', backgroundColor: '#10B981', yAxisID: 'y-bp', borderDash: [5, 5], tension: 0.3, hidden: true },
-                        { label: '肩頸緊繃度', data: sortedData.map(d => d.tension), borderColor: '#8B5CF6', backgroundColor: 'rgba(139, 92, 246, 0.2)', yAxisID: 'y-tension', type: 'bar', borderRadius: 4 }
+                        { label: '收縮壓(日平均)', data: dailyData.map(d => d.sys), borderColor: '#EF4444', backgroundColor: '#EF4444', yAxisID: 'y-bp', tension: 0.3 },
+                        { label: '舒張壓(日平均)', data: dailyData.map(d => d.dia), borderColor: '#3B82F6', backgroundColor: '#3B82F6', yAxisID: 'y-bp', tension: 0.3 },
+                        { label: '脈搏(日平均)', data: dailyData.map(d => d.pulse), borderColor: '#10B981', backgroundColor: '#10B981', yAxisID: 'y-bp', borderDash: [5, 5], tension: 0.3, hidden: true },
+                        { label: '肩頸緊繃度(日平均)', data: dailyData.map(d => d.tension), borderColor: '#8B5CF6', backgroundColor: 'rgba(139, 92, 246, 0.2)', yAxisID: 'y-tension', type: 'bar', borderRadius: 4 }
                     ]
                 },
                 options: {
