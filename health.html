@@ -52,7 +52,7 @@
                 <li>先在右上角「設定 API」填入 Google Apps Script Web App URL，若未設定則使用本地暫存模式。</li>
                 <li>於「新增量測紀錄」輸入日期、時間與生理數據後，點擊「儲存紀錄」。</li>
                 <li>「歷史數據清單」會依 <span class="font-semibold">年月日時間由新到舊</span> 排序，最新資料會顯示在最上方。</li>
-                <li>「數值變化趨勢」圖表顯示最近七天資料，可用於快速觀察變化。</li>
+                <li>「數值變化趨勢」可切換最近七天與近1年；最近七天模式會以每日平均值呈現。</li>
             </ol>
         </section>
         
@@ -111,10 +111,16 @@
 
             <!-- 圖表區域 -->
             <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 lg:col-span-2 flex flex-col">
-                <h2 class="text-lg font-semibold mb-4 flex items-center gap-2">
-                    <i data-lucide="line-chart" class="w-5 h-5 text-purple-500"></i>
-                    數值變化趨勢 (最近七天)
-                </h2>
+                <div class="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <h2 id="trendChartTitle" class="text-lg font-semibold flex items-center gap-2">
+                        <i data-lucide="line-chart" class="w-5 h-5 text-purple-500"></i>
+                        數值變化趨勢 (最近七天)
+                    </h2>
+                    <div class="inline-flex rounded-md shadow-sm">
+                        <button id="range7dBtn" onclick="setChartRange('7d')" class="px-3 py-1.5 text-xs font-medium border border-gray-300 bg-blue-600 text-white rounded-l-md">最近七天</button>
+                        <button id="range1yBtn" onclick="setChartRange('1y')" class="px-3 py-1.5 text-xs font-medium border border-gray-300 border-l-0 bg-white text-gray-700 rounded-r-md">近1年</button>
+                    </div>
+                </div>
                 <div class="flex-1 relative min-h-[300px] w-full">
                     <canvas id="trendChart"></canvas>
                 </div>
@@ -188,6 +194,7 @@
         ];
 
         let chartInstance = null;
+        let chartRange = '7d';
         
         // 讀取瀏覽器 LocalStorage 中的 API 網址 (加入安全防護)
         let configApiUrl = '';
@@ -381,22 +388,55 @@
             return { formattedDate, formattedTime: timeStr };
         }
 
+        function setChartRange(range) {
+            chartRange = range;
+            updateChartRangeControls();
+            renderChart(localData);
+        }
+
+        function updateChartRangeControls() {
+            const titleEl = document.getElementById('trendChartTitle');
+            const btn7d = document.getElementById('range7dBtn');
+            const btn1y = document.getElementById('range1yBtn');
+
+            if (titleEl) {
+                titleEl.innerHTML = `<i data-lucide="line-chart" class="w-5 h-5 text-purple-500"></i> 數值變化趨勢 (${chartRange === '7d' ? '最近七天' : '近1年'})`;
+            }
+
+            if (btn7d && btn1y) {
+                const activeClass = 'px-3 py-1.5 text-xs font-medium border border-gray-300 bg-blue-600 text-white';
+                const inactiveClass = 'px-3 py-1.5 text-xs font-medium border border-gray-300 bg-white text-gray-700';
+
+                btn7d.className = `${chartRange === '7d' ? activeClass : inactiveClass} rounded-l-md`;
+                btn1y.className = `${chartRange === '1y' ? activeClass : inactiveClass} border-l-0 rounded-r-md`;
+            }
+
+            lucide.createIcons();
+        }
+
         // 渲染圖表
         function renderChart(data) {
             const ctx = document.getElementById('trendChart').getContext('2d');
             if (chartInstance) chartInstance.destroy();
 
-            // 篩選最近七天資料（以資料中的最新時間為基準），再依時間由舊到新排序
+            // 先取有效時間戳，之後根據目前切換範圍（最近七天 / 近1年）過濾
             const timestamps = data
                 .map(d => getSortableTimestamp(d.date, d.time))
                 .filter(ts => ts > 0);
             const latestTs = timestamps.length ? Math.max(...timestamps) : Date.now();
-            const startTs = latestTs - (6 * 24 * 60 * 60 * 1000);
+
+            const latestDate = new Date(latestTs);
+            latestDate.setHours(0, 0, 0, 0);
+            const latestDayStartTs = latestDate.getTime();
+
+            const rangeDays = chartRange === '1y' ? 365 : 7;
+            const startTs = latestDayStartTs - ((rangeDays - 1) * 24 * 60 * 60 * 1000);
+            const endTs = latestDayStartTs + (24 * 60 * 60 * 1000) - 1;
 
             const sortedData = [...data]
                 .filter(d => {
                     const ts = getSortableTimestamp(d.date, d.time);
-                    return ts >= startTs && ts <= latestTs;
+                    return ts >= startTs && ts <= endTs;
                 })
                 .sort((a, b) => getSortableTimestamp(a.date, a.time) - getSortableTimestamp(b.date, b.time));
 
@@ -423,7 +463,7 @@
                 day.count += 1;
             });
 
-            const dailyData = [...dailyMap.values()]
+            let dailyData = [...dailyMap.values()]
                 .sort((a, b) => new Date(`${a.date}T00:00`).getTime() - new Date(`${b.date}T00:00`).getTime())
                 .map(day => ({
                     date: day.date,
@@ -432,6 +472,25 @@
                     pulse: Number((day.pulseSum / day.count).toFixed(1)),
                     tension: Number((day.tensionSum / day.count).toFixed(1))
                 }));
+
+            // 最近七天模式固定顯示 7 天，缺資料日期保留空值
+            if (chartRange === '7d') {
+                const allDays = [];
+                for (let i = 0; i < 7; i++) {
+                    const dayTs = startTs + (i * 24 * 60 * 60 * 1000);
+                    const dayDate = new Date(dayTs);
+                    allDays.push(toLocalDateInputValue(dayDate));
+                }
+
+                const dailyLookup = new Map(dailyData.map(d => [d.date, d]));
+                dailyData = allDays.map(date => dailyLookup.get(date) || {
+                    date,
+                    sys: null,
+                    dia: null,
+                    pulse: null,
+                    tension: null
+                });
+            }
 
             const labels = dailyData.map(d => {
                 const { formattedDate } = formatDisplayDateTime(d.date, '00:00');
@@ -668,6 +727,7 @@
         // 網頁載入時初始化
         window.onload = () => {
             setDefaultDateTime();
+            updateChartRangeControls();
             fetchData(); // 這裡會自動使用 localStorage 中的 URL 載入資料
         };
 
