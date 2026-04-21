@@ -52,7 +52,7 @@
                 <li>先在右上角「設定 API」填入 Google Apps Script Web App URL，若未設定則使用本地暫存模式。</li>
                 <li>於「新增量測紀錄」輸入日期、時間與生理數據後，點擊「儲存紀錄」。</li>
                 <li>「歷史數據清單」會依 <span class="font-semibold">年月日時間由新到舊</span> 排序，最新資料會顯示在最上方。</li>
-                <li>「數值變化趨勢」可切換最近七天與近1年；最近七天模式會以每日平均值呈現。</li>
+                <li>「數值變化趨勢」可切換最近七天、近14天、近一個月與近1年；短區間模式會以每日平均值呈現。</li>
             </ol>
         </section>
         
@@ -116,9 +116,11 @@
                         <i data-lucide="line-chart" class="w-5 h-5 text-purple-500"></i>
                         數值變化趨勢 (最近七天)
                     </h2>
-                    <div class="inline-flex rounded-md shadow-sm">
-                        <button id="range7dBtn" onclick="setChartRange('7d')" class="px-3 py-1.5 text-xs font-medium border border-gray-300 bg-blue-600 text-white rounded-l-md">最近七天</button>
-                        <button id="range1yBtn" onclick="setChartRange('1y')" class="px-3 py-1.5 text-xs font-medium border border-gray-300 border-l-0 bg-white text-gray-700 rounded-r-md">近1年</button>
+                    <div class="inline-flex rounded-md shadow-sm overflow-hidden">
+                        <button id="range7dBtn" onclick="setChartRange('7d')" class="px-3 py-1.5 text-xs font-medium border border-gray-300 bg-blue-600 text-white">最近七天</button>
+                        <button id="range14dBtn" onclick="setChartRange('14d')" class="px-3 py-1.5 text-xs font-medium border border-gray-300 border-l-0 bg-white text-gray-700">近14天</button>
+                        <button id="range1mBtn" onclick="setChartRange('1m')" class="px-3 py-1.5 text-xs font-medium border border-gray-300 border-l-0 bg-white text-gray-700">近一個月</button>
+                        <button id="range1yBtn" onclick="setChartRange('1y')" class="px-3 py-1.5 text-xs font-medium border border-gray-300 border-l-0 bg-white text-gray-700">近1年</button>
                     </div>
                 </div>
                 <div class="flex-1 relative min-h-[300px] w-full">
@@ -394,22 +396,53 @@
             renderChart(localData);
         }
 
+        function getChartRangeLabel(range) {
+            const rangeLabelMap = {
+                '7d': '最近七天',
+                '14d': '近14天',
+                '1m': '近一個月',
+                '1y': '近1年'
+            };
+            return rangeLabelMap[range] || '最近七天';
+        }
+
+        function getChartRangeDays(range) {
+            const rangeDaysMap = {
+                '7d': 7,
+                '14d': 14,
+                '1m': 30,
+                '1y': 365
+            };
+            return rangeDaysMap[range] || 7;
+        }
+
         function updateChartRangeControls() {
             const titleEl = document.getElementById('trendChartTitle');
-            const btn7d = document.getElementById('range7dBtn');
-            const btn1y = document.getElementById('range1yBtn');
+            const rangeButtons = {
+                '7d': document.getElementById('range7dBtn'),
+                '14d': document.getElementById('range14dBtn'),
+                '1m': document.getElementById('range1mBtn'),
+                '1y': document.getElementById('range1yBtn')
+            };
 
             if (titleEl) {
-                titleEl.innerHTML = `<i data-lucide="line-chart" class="w-5 h-5 text-purple-500"></i> 數值變化趨勢 (${chartRange === '7d' ? '最近七天' : '近1年'})`;
+                titleEl.innerHTML = `<i data-lucide="line-chart" class="w-5 h-5 text-purple-500"></i> 數值變化趨勢 (${getChartRangeLabel(chartRange)})`;
             }
 
-            if (btn7d && btn1y) {
-                const activeClass = 'px-3 py-1.5 text-xs font-medium border border-gray-300 bg-blue-600 text-white';
-                const inactiveClass = 'px-3 py-1.5 text-xs font-medium border border-gray-300 bg-white text-gray-700';
+            const activeClass = 'px-3 py-1.5 text-xs font-medium border border-gray-300 bg-blue-600 text-white';
+            const inactiveClass = 'px-3 py-1.5 text-xs font-medium border border-gray-300 bg-white text-gray-700';
+            const ranges = ['7d', '14d', '1m', '1y'];
 
-                btn7d.className = `${chartRange === '7d' ? activeClass : inactiveClass} rounded-l-md`;
-                btn1y.className = `${chartRange === '1y' ? activeClass : inactiveClass} border-l-0 rounded-r-md`;
-            }
+            ranges.forEach((range, index) => {
+                const btn = rangeButtons[range];
+                if (!btn) return;
+
+                const roundedClass = index === 0
+                    ? 'rounded-l-md'
+                    : (index === ranges.length - 1 ? 'rounded-r-md' : '');
+                const leftBorderClass = index === 0 ? '' : 'border-l-0';
+                btn.className = `${chartRange === range ? activeClass : inactiveClass} ${leftBorderClass} ${roundedClass}`.trim();
+            });
 
             lucide.createIcons();
         }
@@ -419,7 +452,7 @@
             const ctx = document.getElementById('trendChart').getContext('2d');
             if (chartInstance) chartInstance.destroy();
 
-            // 先取有效時間戳，之後根據目前切換範圍（最近七天 / 近1年）過濾
+            // 先取有效時間戳，之後根據目前切換範圍（最近七天 / 近14天 / 近一個月 / 近1年）過濾
             const timestamps = data
                 .map(d => getSortableTimestamp(d.date, d.time))
                 .filter(ts => ts > 0);
@@ -429,7 +462,7 @@
             latestDate.setHours(0, 0, 0, 0);
             const latestDayStartTs = latestDate.getTime();
 
-            const rangeDays = chartRange === '1y' ? 365 : 7;
+            const rangeDays = getChartRangeDays(chartRange);
             const startTs = latestDayStartTs - ((rangeDays - 1) * 24 * 60 * 60 * 1000);
             const endTs = latestDayStartTs + (24 * 60 * 60 * 1000) - 1;
 
@@ -473,10 +506,10 @@
                     tension: Number((day.tensionSum / day.count).toFixed(1))
                 }));
 
-            // 最近七天模式固定顯示 7 天，缺資料日期保留空值
-            if (chartRange === '7d') {
+            // 短區間模式固定顯示完整日期範圍，缺資料日期保留空值
+            if (chartRange !== '1y') {
                 const allDays = [];
-                for (let i = 0; i < 7; i++) {
+                for (let i = 0; i < rangeDays; i++) {
                     const dayTs = startTs + (i * 24 * 60 * 60 * 1000);
                     const dayDate = new Date(dayTs);
                     allDays.push(toLocalDateInputValue(dayDate));
