@@ -92,8 +92,8 @@
                             <input type="number" id="inputPulse" min="30" max="200" required placeholder="例如: 72" class="w-full border border-gray-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                         </div>
                         <div>
-                            <label class="block text-xs font-medium text-gray-600 mb-1">肩頸緊繃度 (0-10)</label>
-                            <input type="number" id="inputTension" min="0" max="10" required placeholder="0=放鬆, 10=極度僵硬" class="w-full border border-gray-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                            <label class="block text-xs font-medium text-gray-600 mb-1">血糖 (mg/dL)</label>
+                            <input type="number" id="inputGlucose" min="40" max="500" required placeholder="例如: 95" class="w-full border border-gray-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                         </div>
                     </div>
 
@@ -156,7 +156,7 @@
                             <th class="px-4 py-3 font-medium">日期時間</th>
                             <th class="px-4 py-3 font-medium">收縮壓/舒張壓</th>
                             <th class="px-4 py-3 font-medium">脈搏</th>
-                            <th class="px-4 py-3 font-medium">肩頸緊繃 (0-10)</th>
+                            <th class="px-4 py-3 font-medium">血糖 (mg/dL)</th>
                             <th class="px-4 py-3 font-medium">備註</th>
                         </tr>
                     </thead>
@@ -188,11 +188,11 @@
 
         // 預設 Demo 數據
         let localData = [
-            { date: '2026-03-24', time: '08:00', sys: 125, dia: 82, pulse: 70, tension: 3, note: '正常作息' },
-            { date: '2026-03-24', time: '20:00', sys: 130, dia: 85, pulse: 75, tension: 6, note: '下班後微累' },
-            { date: '2026-03-25', time: '08:30', sys: 135, dia: 88, pulse: 72, tension: 7, note: '睡不好' },
-            { date: '2026-03-25', time: '21:00', sys: 142, dia: 92, pulse: 80, tension: 9, note: '嚴重緊繃' },
-            { date: '2026-03-26', time: '08:00', sys: 128, dia: 80, pulse: 71, tension: 4, note: '休息後好轉' }
+            { date: '2026-03-24', time: '08:00', sys: 125, dia: 82, pulse: 70, glucose: 95, note: '正常作息' },
+            { date: '2026-03-24', time: '20:00', sys: 130, dia: 85, pulse: 75, glucose: 118, note: '下班後微累' },
+            { date: '2026-03-25', time: '08:30', sys: 135, dia: 88, pulse: 72, glucose: 102, note: '睡不好' },
+            { date: '2026-03-25', time: '21:00', sys: 142, dia: 92, pulse: 80, glucose: 126, note: '晚餐後' },
+            { date: '2026-03-26', time: '08:00', sys: 128, dia: 80, pulse: 71, glucose: 98, note: '休息後好轉' }
         ];
 
         let chartInstance = null;
@@ -483,7 +483,8 @@
                         sysSum: 0,
                         diaSum: 0,
                         pulseSum: 0,
-                        tensionSum: 0,
+                        glucoseSum: 0,
+                        glucoseCount: 0,
                         count: 0
                     });
                 }
@@ -492,7 +493,11 @@
                 day.sysSum += Number(d.sys || 0);
                 day.diaSum += Number(d.dia || 0);
                 day.pulseSum += Number(d.pulse || 0);
-                day.tensionSum += Number(d.tension || 0);
+                const glucoseNumber = Number(d.glucose);
+                if (!Number.isNaN(glucoseNumber)) {
+                    day.glucoseSum += glucoseNumber;
+                    day.glucoseCount += 1;
+                }
                 day.count += 1;
             });
 
@@ -503,7 +508,7 @@
                     sys: Number((day.sysSum / day.count).toFixed(1)),
                     dia: Number((day.diaSum / day.count).toFixed(1)),
                     pulse: Number((day.pulseSum / day.count).toFixed(1)),
-                    tension: Number((day.tensionSum / day.count).toFixed(1))
+                    glucose: day.glucoseCount ? Number((day.glucoseSum / day.glucoseCount).toFixed(1)) : null
                 }));
 
             // 短區間模式固定顯示完整日期範圍，缺資料日期保留空值
@@ -521,7 +526,7 @@
                     sys: null,
                     dia: null,
                     pulse: null,
-                    tension: null
+                    glucose: null
                 });
             }
 
@@ -538,7 +543,7 @@
                         { label: '收縮壓(日平均)', data: dailyData.map(d => d.sys), borderColor: '#EF4444', backgroundColor: '#EF4444', yAxisID: 'y-bp', tension: 0.3 },
                         { label: '舒張壓(日平均)', data: dailyData.map(d => d.dia), borderColor: '#3B82F6', backgroundColor: '#3B82F6', yAxisID: 'y-bp', tension: 0.3 },
                         { label: '脈搏(日平均)', data: dailyData.map(d => d.pulse), borderColor: '#10B981', backgroundColor: '#10B981', yAxisID: 'y-bp', borderDash: [5, 5], tension: 0.3, hidden: true },
-                        { label: '肩頸緊繃度(日平均)', data: dailyData.map(d => d.tension), borderColor: '#8B5CF6', backgroundColor: 'rgba(139, 92, 246, 0.2)', yAxisID: 'y-tension', type: 'bar', borderRadius: 4 }
+                        { label: '血糖(日平均)', data: dailyData.map(d => d.glucose), borderColor: '#F59E0B', backgroundColor: '#F59E0B', yAxisID: 'y-glucose', tension: 0.3 }
                     ]
                 },
                 options: {
@@ -546,7 +551,7 @@
                     interaction: { mode: 'index', intersect: false },
                     scales: {
                         'y-bp': { type: 'linear', position: 'left', title: { display: true, text: '血壓 / 脈搏 (mmHg/BPM)', font: {size: 10} }, suggestedMin: 60, suggestedMax: 160 },
-                        'y-tension': { type: 'linear', position: 'right', title: { display: true, text: '緊繃度 (0-10)', font: {size: 10} }, min: 0, max: 10, grid: { drawOnChartArea: false } }
+                        'y-glucose': { type: 'linear', position: 'right', title: { display: true, text: '血糖 (mg/dL)', font: {size: 10} }, suggestedMin: 70, suggestedMax: 180, grid: { drawOnChartArea: false } }
                     },
                     plugins: { legend: { position: 'top', labels: { boxWidth: 12, usePointStyle: true } }, tooltip: { backgroundColor: 'rgba(17, 24, 39, 0.9)', padding: 12 } }
                 }
@@ -610,14 +615,16 @@
                 
                 const isHighBP = row.sys > 130 || row.dia > 80;
                 const bpClass = isHighBP ? 'text-red-600 font-medium' : 'text-gray-900';
-                const tensionColor = row.tension >= 7 ? 'bg-red-100 text-red-700' : (row.tension >= 4 ? 'bg-yellow-100 text-yellow-700' : 'bg-green-100 text-green-700');
+                const glucoseValue = row.glucose ?? '-';
+                const glucoseNumber = Number(row.glucose);
+                const glucoseClass = !Number.isNaN(glucoseNumber) && glucoseNumber >= 140 ? 'text-amber-600 font-medium' : 'text-gray-700';
                 const { formattedDate, formattedTime } = formatDisplayDateTime(row.date, row.time);
 
                 tr.innerHTML = `
                     <td class="px-4 py-3 text-gray-700">${formattedDate} <span class="text-gray-400 ml-1">${formattedTime}</span></td>
                     <td class="px-4 py-3 ${bpClass}">${row.sys} / ${row.dia}</td>
                     <td class="px-4 py-3 text-gray-700">${row.pulse}</td>
-                    <td class="px-4 py-3"><span class="px-2 py-1 rounded text-xs font-medium ${tensionColor}">${row.tension}</span></td>
+                    <td class="px-4 py-3 ${glucoseClass}">${glucoseValue}</td>
                     <td class="px-4 py-3 text-gray-500 text-xs truncate max-w-[150px]" title="${row.note || ''}">${row.note || '-'}</td>
                 `;
                 tbody.appendChild(tr);
@@ -708,7 +715,7 @@
                 sys: parseInt(document.getElementById('inputSys').value, 10),
                 dia: parseInt(document.getElementById('inputDia').value, 10),
                 pulse: parseInt(document.getElementById('inputPulse').value, 10),
-                tension: parseInt(document.getElementById('inputTension').value, 10),
+                glucose: parseInt(document.getElementById('inputGlucose').value, 10),
                 note: document.getElementById('inputNote').value
             };
 
