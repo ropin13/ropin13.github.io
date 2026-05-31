@@ -44,11 +44,17 @@
     <!-- 內容區塊 -->
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
         <section class="bg-blue-50 border border-blue-100 rounded-xl p-4 sm:p-5">
-            <h2 class="text-base sm:text-lg font-semibold text-blue-900 flex items-center gap-2">
-                <i data-lucide="book-open" class="w-5 h-5"></i>
-                使用說明
-            </h2>
-            <ol class="mt-3 list-decimal list-inside text-sm text-blue-900 space-y-1.5 leading-6">
+            <button type="button" class="w-full flex items-center justify-between gap-3 text-left" aria-expanded="false" aria-controls="helpSectionBody" onclick="toggleSection('helpSection')">
+                <span class="text-base sm:text-lg font-semibold text-blue-900 flex items-center gap-2">
+                    <i data-lucide="book-open" class="w-5 h-5"></i>
+                    使用說明
+                </span>
+                <span class="text-xs font-medium text-blue-700 flex items-center gap-1">
+                    <span data-section-label="helpSection">展開</span>
+                    <i data-lucide="chevron-down" class="w-4 h-4 transition-transform" data-section-icon="helpSection"></i>
+                </span>
+            </button>
+            <ol id="helpSectionBody" class="mt-3 list-decimal list-inside text-sm text-blue-900 space-y-1.5 leading-6 hidden">
                 <li>先在右上角「設定 API」填入 Google Apps Script Web App URL，若未設定則使用本地暫存模式。</li>
                 <li>於「新增量測紀錄」輸入日期、時間與生理數據後，點擊「儲存紀錄」。</li>
                 <li>「歷史數據清單」會依 <span class="font-semibold">年月日時間由新到舊</span> 排序，最新資料會顯示在最上方。</li>
@@ -59,11 +65,17 @@
         <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
             <!-- 輸入表單 -->
             <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-                <h2 class="text-lg font-semibold mb-4 flex items-center gap-2">
-                    <i data-lucide="plus-circle" class="w-5 h-5 text-green-500"></i>
-                    新增量測紀錄
-                </h2>
-                <form id="recordForm" class="space-y-4" onsubmit="handleFormSubmit(event)">
+                <button type="button" class="w-full mb-4 flex items-center justify-between gap-3 text-left" aria-expanded="true" aria-controls="recordSectionBody" onclick="toggleSection('recordSection')">
+                    <span class="text-lg font-semibold flex items-center gap-2">
+                        <i data-lucide="plus-circle" class="w-5 h-5 text-green-500"></i>
+                        新增量測紀錄
+                    </span>
+                    <span class="text-xs font-medium text-gray-500 flex items-center gap-1">
+                        <span data-section-label="recordSection">收合</span>
+                        <i data-lucide="chevron-up" class="w-4 h-4 transition-transform" data-section-icon="recordSection"></i>
+                    </span>
+                </button>
+                <form id="recordSectionBody" class="space-y-4" onsubmit="handleFormSubmit(event)">
                     <div class="grid grid-cols-2 gap-4">
                         <div>
                             <label class="block text-xs font-medium text-gray-600 mb-1">日期</label>
@@ -112,44 +124,67 @@
             <!-- 圖表區域 -->
             <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 lg:col-span-2 flex flex-col">
                 <div class="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                    <h2 id="trendChartTitle" class="text-lg font-semibold flex items-center gap-2">
-                        <i data-lucide="line-chart" class="w-5 h-5 text-purple-500"></i>
-                        數值變化趨勢 (最近七天)
-                    </h2>
-                    <div class="inline-flex rounded-md shadow-sm overflow-hidden">
+                    <button type="button" class="flex items-center justify-between gap-3 text-left" aria-expanded="true" aria-controls="trendSectionBody" onclick="toggleSection('trendSection')">
+                        <span id="trendChartTitle" class="text-lg font-semibold flex items-center gap-2">
+                            <i data-lucide="line-chart" class="w-5 h-5 text-purple-500"></i>
+                            數值變化趨勢 (最近七天)
+                        </span>
+                        <span class="text-xs font-medium text-gray-500 flex items-center gap-1">
+                            <span data-section-label="trendSection">收合</span>
+                            <i data-lucide="chevron-up" class="w-4 h-4 transition-transform" data-section-icon="trendSection"></i>
+                        </span>
+                    </button>
+                </div>
+                <div id="trendSectionBody" class="flex-1 flex flex-col gap-4">
+                    <div class="inline-flex rounded-md shadow-sm overflow-hidden self-start">
                         <button id="range7dBtn" onclick="setChartRange('7d')" class="px-3 py-1.5 text-xs font-medium border border-gray-300 bg-blue-600 text-white">最近七天</button>
                         <button id="range14dBtn" onclick="setChartRange('14d')" class="px-3 py-1.5 text-xs font-medium border border-gray-300 border-l-0 bg-white text-gray-700">近14天</button>
                         <button id="range1mBtn" onclick="setChartRange('1m')" class="px-3 py-1.5 text-xs font-medium border border-gray-300 border-l-0 bg-white text-gray-700">近一個月</button>
                         <button id="range1yBtn" onclick="setChartRange('1y')" class="px-3 py-1.5 text-xs font-medium border border-gray-300 border-l-0 bg-white text-gray-700">近1年</button>
                     </div>
-                </div>
-                <div class="flex-1 relative min-h-[300px] w-full">
-                    <canvas id="trendChart"></canvas>
+                    <div class="flex-1 relative min-h-[300px] w-full">
+                        <canvas id="trendChart"></canvas>
+                    </div>
                 </div>
             </div>
 
             <!-- 最近七天平均血壓資訊 -->
             <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 lg:col-span-1">
-                <h2 class="text-lg font-semibold mb-4 flex items-center gap-2">
-                    <i data-lucide="heart-pulse" class="w-5 h-5 text-rose-500"></i>
-                    最近七天平均血壓
-                </h2>
-                <p id="avgBp7d" class="text-2xl font-bold text-gray-900">-- / --</p>
-                <p class="mt-2 text-sm text-gray-600">標準血壓 &lt;130/80 mmHg</p>
-                <p id="avgBp7dCount" class="mt-3 text-xs text-gray-500">最近七天無資料</p>
+                <button type="button" class="w-full mb-4 flex items-center justify-between gap-3 text-left" aria-expanded="true" aria-controls="avgBpSectionBody" onclick="toggleSection('avgBpSection')">
+                    <span class="text-lg font-semibold flex items-center gap-2">
+                        <i data-lucide="heart-pulse" class="w-5 h-5 text-rose-500"></i>
+                        最近七天平均血壓
+                    </span>
+                    <span class="text-xs font-medium text-gray-500 flex items-center gap-1">
+                        <span data-section-label="avgBpSection">收合</span>
+                        <i data-lucide="chevron-up" class="w-4 h-4 transition-transform" data-section-icon="avgBpSection"></i>
+                    </span>
+                </button>
+                <div id="avgBpSectionBody">
+                    <p id="avgBp7d" class="text-2xl font-bold text-gray-900">-- / --</p>
+                    <p class="mt-2 text-sm text-gray-600">標準血壓 &lt;130/80 mmHg</p>
+                    <p id="avgBp7dCount" class="mt-3 text-xs text-gray-500">最近七天無資料</p>
+                </div>
             </div>
         </div>
 
         <!-- 歷史數據表格 -->
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-            <div class="p-4 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
-                <h2 class="text-lg font-semibold flex items-center gap-2">
-                    <i data-lucide="table" class="w-5 h-5 text-gray-500"></i>
-                    歷史數據清單
-                </h2>
+            <div class="p-4 border-b border-gray-100 bg-gray-50 flex justify-between items-center gap-3">
+                <button type="button" class="flex items-center justify-between gap-3 text-left" aria-expanded="true" aria-controls="historySectionBody" onclick="toggleSection('historySection')">
+                    <span class="text-lg font-semibold flex items-center gap-2">
+                        <i data-lucide="table" class="w-5 h-5 text-gray-500"></i>
+                        歷史數據清單
+                    </span>
+                    <span class="text-xs font-medium text-gray-500 flex items-center gap-1">
+                        <span data-section-label="historySection">收合</span>
+                        <i data-lucide="chevron-up" class="w-4 h-4 transition-transform" data-section-icon="historySection"></i>
+                    </span>
+                </button>
                 <span id="dataStatus" class="text-xs px-2 py-1 rounded bg-gray-200 text-gray-600">本地暫存模式</span>
             </div>
-            <div class="overflow-x-auto">
+            <div id="historySectionBody">
+                <div class="overflow-x-auto">
                 <table class="w-full text-sm text-left whitespace-nowrap">
                     <thead class="text-xs text-gray-600 bg-gray-50 border-b border-gray-200">
                         <tr>
@@ -164,9 +199,10 @@
                         <!-- 資料由 JS 動態生成 -->
                     </tbody>
                 </table>
-            </div>
-            <!-- 分頁控制項 -->
-            <div id="paginationControls" class="px-4 py-3 border-t border-gray-200 flex items-center justify-between sm:px-6 bg-white">
+                </div>
+                <!-- 分頁控制項 -->
+                <div id="paginationControls" class="px-4 py-3 border-t border-gray-200 flex items-center justify-between sm:px-6 bg-white">
+                </div>
             </div>
         </div>
 
@@ -181,6 +217,51 @@
     <script>
         // 初始化 Lucide 圖示
         lucide.createIcons();
+
+        const collapsibleSections = {
+            helpSection: { bodyId: 'helpSectionBody', defaultCollapsed: true },
+            recordSection: { bodyId: 'recordSectionBody', defaultCollapsed: false },
+            trendSection: { bodyId: 'trendSectionBody', defaultCollapsed: false },
+            avgBpSection: { bodyId: 'avgBpSectionBody', defaultCollapsed: false },
+            historySection: { bodyId: 'historySectionBody', defaultCollapsed: false }
+        };
+
+        function setSectionCollapsed(sectionId, collapsed) {
+            const section = collapsibleSections[sectionId];
+            if (!section) return;
+
+            const body = document.getElementById(section.bodyId);
+            const trigger = document.querySelector(`[aria-controls="${section.bodyId}"]`);
+            const label = document.querySelector(`[data-section-label="${sectionId}"]`);
+            const icon = document.querySelector(`[data-section-icon="${sectionId}"]`);
+
+            if (body) body.classList.toggle('hidden', collapsed);
+            if (trigger) trigger.setAttribute('aria-expanded', String(!collapsed));
+            if (label) label.textContent = collapsed ? '展開' : '收合';
+            if (icon) {
+                icon.setAttribute('data-lucide', collapsed ? 'chevron-down' : 'chevron-up');
+            }
+
+            lucide.createIcons();
+
+            if (!collapsed && sectionId === 'trendSection' && chartInstance) {
+                requestAnimationFrame(() => chartInstance.resize());
+            }
+        }
+
+        function toggleSection(sectionId) {
+            const section = collapsibleSections[sectionId];
+            if (!section) return;
+
+            const body = document.getElementById(section.bodyId);
+            setSectionCollapsed(sectionId, body ? !body.classList.contains('hidden') : true);
+        }
+
+        function initializeCollapsibleSections() {
+            Object.entries(collapsibleSections).forEach(([sectionId, section]) => {
+                setSectionCollapsed(sectionId, section.defaultCollapsed);
+            });
+        }
 
         // 分頁相關狀態
         let currentPage = 1;
@@ -767,6 +848,7 @@
         // 網頁載入時初始化
         window.onload = () => {
             setDefaultDateTime();
+            initializeCollapsibleSections();
             updateChartRangeControls();
             fetchData(); // 這裡會自動使用 localStorage 中的 URL 載入資料
         };
