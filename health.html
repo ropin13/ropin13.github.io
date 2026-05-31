@@ -56,7 +56,7 @@
             </button>
             <ol id="helpSectionBody" class="mt-3 list-decimal list-inside text-sm text-blue-900 space-y-1.5 leading-6 hidden">
                 <li>先在右上角「設定 API」填入 Google Apps Script Web App URL，若未設定則使用本地暫存模式。</li>
-                <li>於「新增量測紀錄」輸入日期、時間與生理數據後，點擊「儲存紀錄」。</li>
+                <li>於「新增量測紀錄」輸入生理數據後，點擊「儲存紀錄」，系統會自動以儲存當下時間建立紀錄。</li>
                 <li>「歷史數據清單」會依 <span class="font-semibold">年月日時間由新到舊</span> 排序，最新資料會顯示在最上方。</li>
                 <li>「數值變化趨勢」可切換最近七天、近14天、近一個月與近1年；短區間模式會以每日平均值呈現。</li>
             </ol>
@@ -76,17 +76,10 @@
                     </span>
                 </button>
                 <form id="recordSectionBody" class="space-y-4" onsubmit="handleFormSubmit(event)">
-                    <div class="grid grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-xs font-medium text-gray-600 mb-1">日期</label>
-                            <input type="date" id="inputDate" required class="w-full border border-gray-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-medium text-gray-600 mb-1">時間</label>
-                            <input type="time" id="inputTime" required class="w-full border border-gray-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
-                        </div>
-                    </div>
-                    
+                    <p class="rounded-md bg-blue-50 px-3 py-2 text-xs leading-5 text-blue-700">
+                        日期時間會在點選「儲存紀錄」時自動帶入當下時間。
+                    </p>
+
                     <div class="grid grid-cols-2 gap-4">
                         <div>
                             <label class="block text-xs font-medium text-gray-600 mb-1">收縮壓 (mmHg)</label>
@@ -293,13 +286,13 @@
             return new Date(dateObj.getTime() - tzOffsetMs).toISOString().slice(0, 10);
         }
 
-        // 設定目前時間為表單預設值
-        function setDefaultDateTime() {
+        // 取得儲存當下的本地日期與時間
+        function getCurrentRecordDateTime() {
             const now = new Date();
-            const localDate = toLocalDateInputValue(now); // YYYY-MM-DD
-            const localTime = now.toTimeString().substring(0,5); // HH:MM
-            document.getElementById('inputDate').value = localDate;
-            document.getElementById('inputTime').value = localTime;
+            return {
+                date: toLocalDateInputValue(now),
+                time: now.toTimeString().substring(0, 5)
+            };
         }
 
         // 將各種日期來源正規化為 YYYY-MM-DD，避免排序/顯示異常
@@ -790,9 +783,10 @@
             btn.disabled = true;
             lucide.createIcons();
 
+            const recordDateTime = getCurrentRecordDateTime();
             const newRecord = {
-                date: document.getElementById('inputDate').value,
-                time: document.getElementById('inputTime').value,
+                date: recordDateTime.date,
+                time: recordDateTime.time,
                 sys: parseInt(document.getElementById('inputSys').value, 10),
                 dia: parseInt(document.getElementById('inputDia').value, 10),
                 pulse: parseInt(document.getElementById('inputPulse').value, 10),
@@ -847,7 +841,6 @@
 
         // 網頁載入時初始化
         window.onload = () => {
-            setDefaultDateTime();
             initializeCollapsibleSections();
             updateChartRangeControls();
             fetchData(); // 這裡會自動使用 localStorage 中的 URL 載入資料
