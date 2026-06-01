@@ -77,28 +77,28 @@
                 </button>
                 <form id="recordSectionBody" class="space-y-4" onsubmit="handleFormSubmit(event)">
                     <p class="rounded-md bg-blue-50 px-3 py-2 text-xs leading-5 text-blue-700">
-                        日期時間會在點選「儲存紀錄」時自動帶入當下時間。
+                        日期時間會在點選「儲存紀錄」時自動帶入當下時間；標示 * 的血壓欄位為必填。
                     </p>
 
                     <div class="grid grid-cols-2 gap-4">
                         <div>
-                            <label class="block text-xs font-medium text-gray-600 mb-1">收縮壓 (mmHg)</label>
-                            <input type="number" id="inputSys" min="50" max="250" required placeholder="例如: 120" class="w-full border border-gray-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                            <label class="block text-xs font-medium text-gray-600 mb-1">收縮壓 (mmHg) <span class="text-red-500">*</span></label>
+                            <input type="number" id="inputSys" min="50" max="250" required placeholder="必填，例如: 120" class="w-full border border-gray-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                         </div>
                         <div>
-                            <label class="block text-xs font-medium text-gray-600 mb-1">舒張壓 (mmHg)</label>
-                            <input type="number" id="inputDia" min="30" max="150" required placeholder="例如: 80" class="w-full border border-gray-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                            <label class="block text-xs font-medium text-gray-600 mb-1">舒張壓 (mmHg) <span class="text-red-500">*</span></label>
+                            <input type="number" id="inputDia" min="30" max="150" required placeholder="必填，例如: 80" class="w-full border border-gray-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                         </div>
                     </div>
 
                     <div class="grid grid-cols-2 gap-4">
                         <div>
                             <label class="block text-xs font-medium text-gray-600 mb-1">脈搏 (BPM)</label>
-                            <input type="number" id="inputPulse" min="30" max="200" required placeholder="例如: 72" class="w-full border border-gray-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                            <input type="number" id="inputPulse" min="30" max="200" placeholder="選填，例如: 72" class="w-full border border-gray-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                         </div>
                         <div>
                             <label class="block text-xs font-medium text-gray-600 mb-1">血糖 (mg/dL)</label>
-                            <input type="number" id="inputGlucose" min="40" max="500" required placeholder="例如: 95" class="w-full border border-gray-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                            <input type="number" id="inputGlucose" min="40" max="500" placeholder="選填，例如: 95" class="w-full border border-gray-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                         </div>
                     </div>
 
@@ -557,6 +557,7 @@
                         sysSum: 0,
                         diaSum: 0,
                         pulseSum: 0,
+                        pulseCount: 0,
                         glucoseSum: 0,
                         glucoseCount: 0,
                         count: 0
@@ -566,9 +567,13 @@
                 const day = dailyMap.get(dateKey);
                 day.sysSum += Number(d.sys || 0);
                 day.diaSum += Number(d.dia || 0);
-                day.pulseSum += Number(d.pulse || 0);
-                const glucoseNumber = Number(d.glucose);
-                if (!Number.isNaN(glucoseNumber)) {
+                const pulseNumber = parseOptionalMetricValue(d.pulse);
+                if (pulseNumber !== null) {
+                    day.pulseSum += pulseNumber;
+                    day.pulseCount += 1;
+                }
+                const glucoseNumber = parseOptionalMetricValue(d.glucose);
+                if (glucoseNumber !== null) {
                     day.glucoseSum += glucoseNumber;
                     day.glucoseCount += 1;
                 }
@@ -581,7 +586,7 @@
                     date: day.date,
                     sys: Number((day.sysSum / day.count).toFixed(1)),
                     dia: Number((day.diaSum / day.count).toFixed(1)),
-                    pulse: Number((day.pulseSum / day.count).toFixed(1)),
+                    pulse: day.pulseCount ? Number((day.pulseSum / day.pulseCount).toFixed(1)) : null,
                     glucose: day.glucoseCount ? Number((day.glucoseSum / day.glucoseCount).toFixed(1)) : null
                 }));
 
@@ -689,15 +694,16 @@
                 
                 const isHighBP = row.sys > 130 || row.dia > 80;
                 const bpClass = isHighBP ? 'text-red-600 font-medium' : 'text-gray-900';
-                const glucoseValue = row.glucose ?? '-';
-                const glucoseNumber = Number(row.glucose);
-                const glucoseClass = !Number.isNaN(glucoseNumber) && glucoseNumber >= 140 ? 'text-amber-600 font-medium' : 'text-gray-700';
+                const pulseValue = formatOptionalMetricValue(row.pulse);
+                const glucoseValue = formatOptionalMetricValue(row.glucose);
+                const glucoseNumber = parseOptionalMetricValue(row.glucose);
+                const glucoseClass = glucoseNumber !== null && glucoseNumber >= 140 ? 'text-amber-600 font-medium' : 'text-gray-700';
                 const { formattedDate, formattedTime } = formatDisplayDateTime(row.date, row.time);
 
                 tr.innerHTML = `
                     <td class="px-4 py-3 text-gray-700">${formattedDate} <span class="text-gray-400 ml-1">${formattedTime}</span></td>
                     <td class="px-4 py-3 ${bpClass}">${row.sys} / ${row.dia}</td>
-                    <td class="px-4 py-3 text-gray-700">${row.pulse}</td>
+                    <td class="px-4 py-3 text-gray-700">${pulseValue}</td>
                     <td class="px-4 py-3 ${glucoseClass}">${glucoseValue}</td>
                     <td class="px-4 py-3 text-gray-500 text-xs truncate max-w-[150px]" title="${row.note || ''}">${row.note || '-'}</td>
                 `;
@@ -773,6 +779,23 @@
             }
         }
 
+        function parseOptionalMetricValue(value) {
+            if (value === null || value === undefined || value === '') return null;
+
+            const numericValue = Number(value);
+            return Number.isNaN(numericValue) ? null : numericValue;
+        }
+
+        function formatOptionalMetricValue(value) {
+            const numericValue = parseOptionalMetricValue(value);
+            return numericValue === null ? '-' : value;
+        }
+
+        function parseOptionalNumberInput(inputId) {
+            const value = document.getElementById(inputId).value.trim();
+            return value === '' ? null : parseInt(value, 10);
+        }
+
         // 處理表單送出
         async function handleFormSubmit(e) {
             e.preventDefault();
@@ -789,8 +812,8 @@
                 time: recordDateTime.time,
                 sys: parseInt(document.getElementById('inputSys').value, 10),
                 dia: parseInt(document.getElementById('inputDia').value, 10),
-                pulse: parseInt(document.getElementById('inputPulse').value, 10),
-                glucose: parseInt(document.getElementById('inputGlucose').value, 10),
+                pulse: parseOptionalNumberInput('inputPulse'),
+                glucose: parseOptionalNumberInput('inputGlucose'),
                 note: document.getElementById('inputNote').value
             };
 
